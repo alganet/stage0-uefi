@@ -2,16 +2,16 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-targets = hex0
-ESP_SIZE = 50 # MiB
+targets = kaem-minimal hex0
+ESP_SIZE_MIB = 50
 QEMU = qemu-system-x86_64
 OVMF_IMG = /usr/share/edk2-ovmf/OVMF_CODE.fd
 
-ESP_SIZE_SECTORS = $$(($(ESP_SIZE) * 2048))
-DISK_SIZE_SECTORS=$$(($(ESP_SIZE_SECTORS) + 2048 + 33))
+ESP_SIZE_SECTORS = $$(($(ESP_SIZE_MIB) * 2048))
+DISK_SIZE_SECTORS = $$(($(ESP_SIZE_SECTORS) + 2048 + 33))
 
 cc = clang
-cflags = -ffreestanding -MMD -mno-red-zone -std=c11 -target x86_64-unknown-windows -Wall -Werror -pedantic
+cflags = -ffreestanding -MMD -mno-red-zone -std=c11 -target x86_64-unknown-windows
 ld = lld-link
 lflags = -subsystem:efi_application -nodefaultlib -dll
 build_dir = build
@@ -50,7 +50,8 @@ $(build_dir)/esp.img: rootfs
 rootfs: $(targets2)
 	cp -R rootfs $(build_dir)
 	mkdir -p $(rootfs_dir)/EFI/BOOT/
-	cp $(build_dir)/hex0.efi $(rootfs_dir)/EFI/BOOT/BOOTX64.EFI
+	cp $^ $(rootfs_dir)/EFI/BOOT/
+	mv $(rootfs_dir)//EFI/BOOT/kaem-minimal.efi $(rootfs_dir)/EFI/BOOT/BOOTX64.EFI
 
 clean:
 	rm -rf $(build_dir)

@@ -3,6 +3,7 @@
 #ifndef __EFI_BOOT_TABLE_H__
 #define __EFI_BOOT_TABLE_H__
 
+#include "device_path_protocol.h"
 #include "types.h"
 
 static const uint32_t EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL = 0x00000001;
@@ -52,14 +53,13 @@ struct efi_boot_table
 	void (*unused20)();
 
 	// Image Services
-	void (*unused21)();
-	void (*unused22)();
+	efi_status_t (*load_image)(uint8_t, efi_handle_t, struct efi_device_path_protocol*, void *, efi_uint_t, efi_handle_t);
+	efi_status_t (*start_image)(efi_handle_t, efi_uint_t *, uint16_t);
 	void (*unused23)();
-	void (*unused24)();
-
+	efi_status_t (*exit)(efi_handle_t, efi_status_t, uint16_t);
 	efi_status_t (*exit_boot_services)(efi_handle_t, efi_uint_t);
 
-	// Miscellaneius Services
+	// Miscellaneous Services
 	void (*unused26)();
 	void (*unused27)();
 	void (*unused28)();
@@ -94,7 +94,7 @@ struct efi_boot_table
 	// 32-bit CRC Services
 	void (*unused39)();
 
-	// Miscellaneius Services (cont)
+	// Miscellaneous Services (cont)
 	void (*unused40)();
 	void (*unused41)();
 	void (*unused42)();

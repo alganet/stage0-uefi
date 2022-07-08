@@ -114,8 +114,8 @@ not_comment:
     goto next_byte;
 
 terminate:
-    /* rootdir->close(fin);
-       rootdir->close(fout); */
+    rootdir->close(fin);
+    rootdir->close(fout);
 
     return 0;
 }
