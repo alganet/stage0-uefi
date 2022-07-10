@@ -1,4 +1,8 @@
 # SPDX-License-Identifier: MIT
 
 *~
-Development/build/
+*/build/
+*.d
+*.lib
+*.efi
+*.o

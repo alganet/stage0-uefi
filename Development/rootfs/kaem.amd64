@@ -1,0 +1,5 @@
+# kaem
+
+# Rebuild hex0
+EFI\BOOT\hex0.efi hex0_AMD64_POSIX.hex0 hex0 # hex0
+
