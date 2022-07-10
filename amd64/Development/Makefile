@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 cc = clang
-cflags = -ffreestanding -MMD -mno-red-zone -std=c11 -target x86_64-unknown-windows
+cflags = -ffreestanding -MMD -mno-red-zone -std=c11 -target x86_64-unknown-windows -masm=intel
 ld = lld-link
 lflags = -subsystem:efi_application -nodefaultlib -dll
 
@@ -16,8 +16,8 @@ $(build)/%.o : %.S
 	$(cc) $(cflags) -c $< -o $@
 
 $(build)/%.efi : $(build)/%.o
-	$(ld) $(lflags) -entry:efi_main $< -out:$@
+	$(ld) $(lflags) -entry:_start $< -out:$@
 
 . PHONY : clean all
 clean:
-	rm -f $(build)
+	rm -rf $(build)
