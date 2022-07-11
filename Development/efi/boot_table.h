@@ -60,7 +60,7 @@ struct efi_boot_table
 	efi_status_t (*exit_boot_services)(efi_handle_t, efi_uint_t);
 
 	// Miscellaneous Services
-	void (*unused26)();
+	efi_status_t (*set_watchdog_timer)(efi_uint_t timeout, uint64_t watchdog_code, efi_uint_t data_size, uint16_t *watchdog_data);
 	void (*unused27)();
 	void (*unused28)();
 

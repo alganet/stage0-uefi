@@ -23,6 +23,8 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
     struct efi_guid guid2 = EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID;
     struct efi_guid guid3 = EFI_FILE_INFO_GUID;
 
+    system->boot->set_watchdog_timer(0, 0, 0, NULL);
+
     /* Open Loaded Image protocol */
     system->boot->open_protocol(image_handle, &guid1, (void **) &image, image_handle, 0,
                                 EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL);
