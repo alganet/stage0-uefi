@@ -5,7 +5,12 @@
 targets = kaem-minimal hex0
 ESP_SIZE_MIB = 50
 QEMU = qemu-system-x86_64
-OVMF_IMG = /usr/share/edk2-ovmf/OVMF_CODE.fd
+
+ifneq ($(wildcard /usr/share/OVMF/OVMF_CODE.fd),)
+    OVMF_IMG=/usr/share/OVMF/OVMF_CODE.fd)
+else
+    OVMF_IMG = /usr/share/edk2-ovmf/OVMF_CODE.fd
+endif
 
 ESP_SIZE_SECTORS = $$(($(ESP_SIZE_MIB) * 2048))
 DISK_SIZE_SECTORS = $$(($(ESP_SIZE_SECTORS) + 2048 + 33))
@@ -51,7 +56,7 @@ rootfs: $(targets2)
 	cp -R rootfs $(build_dir)
 	mkdir -p $(rootfs_dir)/EFI/BOOT/
 	cp $^ $(rootfs_dir)/EFI/BOOT/
-	mv $(rootfs_dir)//EFI/BOOT/kaem-minimal.efi $(rootfs_dir)/EFI/BOOT/BOOTX64.EFI
+	mv $(rootfs_dir)/EFI/BOOT/kaem-minimal.efi $(rootfs_dir)/EFI/BOOT/BOOTX64.EFI
 
 clean:
 	rm -rf $(build_dir)
