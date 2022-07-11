@@ -6,6 +6,8 @@ targets = kaem-minimal hex0
 ESP_SIZE_MIB = 50
 QEMU = qemu-system-x86_64
 
+QEMU_KVM = -enable-kvm
+
 ifneq ($(wildcard /usr/share/OVMF/OVMF_CODE.fd),)
     OVMF_IMG=/usr/share/OVMF/OVMF_CODE.fd)
 else
@@ -34,7 +36,8 @@ $(build_dir)/%.o : %.c
 .PHONY : clean rootfs qemu
 
 qemu: $(build_dir)/disk.img $(OVMF_IMG)
-	$(QEMU) -cpu qemu64 -enable-kvm -net none \
+	$(QEMU) -cpu qemu64 -net none \
+	$(QEMU_KVM) \
 	-drive if=pflash,format=raw,unit=0,file=$(OVMF_IMG),readonly=on \
 	-drive if=ide,format=raw,file=$<
 
