@@ -25,7 +25,7 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
     uint16_t *out;
     do {
         ++options;
-    } while (*options != ' '); /* Skip app name */
+    } while (*options != ' '); /* Skip application name */
     in = ++options;
     do {
         ++options;
@@ -40,13 +40,13 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
     /* Get root fs */
     rootfs->open_volume(rootfs, &rootdir);
 
-    /* Open file for reading */
-    struct efi_file_protocol *fin;
-    rootdir->open(rootdir, &fin, in, EFI_FILE_MODE_READ, EFI_FILE_READ_ONLY);
-
     /* Open file for writing */
     struct efi_file_protocol *fout;
     rootdir->open(rootdir, &fout, out, EFI_FILE_MODE_CREATE| EFI_FILE_MODE_WRITE | EFI_FILE_MODE_READ, 0);
+
+    /* Open file for reading */
+    struct efi_file_protocol *fin;
+    rootdir->open(rootdir, &fin, in, EFI_FILE_MODE_READ, EFI_FILE_READ_ONLY);
 
     uint8_t c;
     uint64_t size;

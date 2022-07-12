@@ -9,7 +9,7 @@ QEMU = qemu-system-x86_64
 QEMU_KVM = -enable-kvm
 
 ifneq ($(wildcard /usr/share/OVMF/OVMF_CODE.fd),)
-    OVMF_IMG=/usr/share/OVMF/OVMF_CODE.fd)
+    OVMF_IMG = /usr/share/OVMF/OVMF_CODE.fd
 else
     OVMF_IMG = /usr/share/edk2-ovmf/OVMF_CODE.fd
 endif
