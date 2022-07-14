@@ -34,6 +34,7 @@ _start:
 
         # Command line args
         mov  rax, [rsp+64]                 # get image
+        add  rsp, 72                       # deallocate stack
         mov  rcx, rax                      # save image
         mov  rax, [rax+56]                 # options = image->load_options
 
@@ -52,7 +53,7 @@ loop_options2:                             # Skip argv[1]
         cmp  bl, 0x20                      # if *options != ' '
         jne  loop_options2                 # then jump
 
-        mov  qword ptr [rax],              # *options = 0;
+        mov  byte ptr [rax], 0             # *options = 0;
         add  rax, 2                        # ++options
         push rax                           # out = options
 
@@ -64,17 +65,35 @@ loop_options2:                             # Skip argv[1]
         mov  rdx, [SIMPLE_FS_PROTOCOL+8]   # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (last 64 bits)
         mov  [rsp+56], rdx                 # save onto stack
         lea  rdx, [rsp+48]                 # arg2 = &EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID
-        lea  r8, [rsp+64]                  # arg3 = &root_fs
+        lea  r8, [rsp+64]                  # arg3 = &rootfs
         mov  r9, [ImageHandle]             # arg4 = image_handle
         mov  qword ptr [rsp+32], 0         # arg5 = NULL
         mov  qword ptr [rsp+40], 1         # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
 
         mov  rax, [SystemBoot]             # system->boot
         call [rax+280]                     # system->boot->open_protocol();
-        mov  r8, [rsp+64]                  # get root_fs
-        add  rsp, 144                      # deallocate stack
 
-        pop  r8                            # out
+        # Get root fs
+        mov  rcx, [rsp+64]                 # get rootfs
+        add  rsp, 72                       # deallocate stacks
+
+        sub  rsp, 32                       # allocate stack
+        lea  rdx, [rsp+24]                 # arg2 = &rootdir
+        call [rcx+8]                       # rootfs->open_volume(rootfs, &rootdir)
+
+        # Open file for writing
+        mov  rcx, [rsp+24]                 # arg1 = rootdir
+        add  rsp, 32                       # deallocate stack
+
+        pop  r8                            # arg3 = out
+        sub  rsp, 48                       # allocate stack
+        lea  rdx, [rsp+40]                 # arg2 = &fout
+        mov  r9, 0x8000000000000003        # arg4 = EFI_FILE_MODE_CREATE| EFI_FILE_MODE_WRITE | EFI_FILE_MODE_READ
+        mov  qword ptr [rsp+32], 0         # arg5 = 0
+        call [rcx+8]                       # rootdir->open()
+
+        add  rsp, 48                       # deallocate stack
+
         pop  r8                            # in
 
 Done:
@@ -90,10 +109,10 @@ LOADED_IMAGE_PROTOCOL:
 .long  0x5b1b31a1
 .short 0x9562
 .short 0x11d2
-.byte 0x8e, 0x3f, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b
+.byte  0x8e, 0x3f, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b
 
 SIMPLE_FS_PROTOCOL:
 .long  0x0964e5b22
 .short 0x6459
 .short 0x11d2
-.byte 0x8e, 0x39, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b
+.byte  0x8e, 0x39, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b
