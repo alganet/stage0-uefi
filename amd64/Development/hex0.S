@@ -78,13 +78,13 @@ loop_options2:                             # Skip argv[1]
         add  rsp, 72                       # deallocate stacks
 
         sub  rsp, 32                       # allocate stack
-        lea  rdx, [rsp+24]                 # arg2 = &rootdir
+        lea  rdx, [RootDir]                # arg2 = &rootdir
         call [rcx+8]                       # rootfs->open_volume(rootfs, &rootdir)
 
         # Open file for writing
-        mov  rcx, [rsp+24]                 # arg1 = rootdir
         add  rsp, 32                       # deallocate stack
 
+        mov  rcx, [RootDir]                # arg1 = rootdir
         pop  r8                            # arg3 = out
         sub  rsp, 48                       # allocate stack
         lea  rdx, [rsp+40]                 # arg2 = &fout
@@ -92,10 +92,20 @@ loop_options2:                             # Skip argv[1]
         mov  qword ptr [rsp+32], 0         # arg5 = 0
         call [rcx+8]                       # rootdir->open()
 
+        # Open file for reading
+        mov  r12, [rsp+40]                 # save fout
         add  rsp, 48                       # deallocate stack
 
-        pop  r8                            # in
+        mov  rcx, [RootDir]                # arg1 = rootdir
+        pop  r8                            # arg3 = in
+        sub  rsp, 48                       # allocate stack
+        lea  rdx, [rsp+40]                 # arg2 = &fin
+        mov  r9, 1                         # arg4 = EFI_FILE_MODE_READ
+        mov  qword ptr [rsp+32], 1         # arg5 = EFI_FILE_READ_ONLY
+        call [rcx+8]                       # rootdir->open()
 
+        mov  r13, [rsp+40]                 # save fin
+        add  rsp, 48                       # deallocate stack
 Done:
         ret
 
@@ -103,6 +113,7 @@ Done:
 
 ImageHandle: .quad 0
 SystemBoot: .quad 0
+RootDir: .quad 0
 
 # Protocol GUIDs
 LOADED_IMAGE_PROTOCOL:
