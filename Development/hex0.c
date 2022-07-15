@@ -64,10 +64,9 @@ next_byte:
     }
 
     /* Check if it's a comment */
-    if (c == '#' || c == ';') {
-        goto loop;
+    if (c != '#' && c != ';') {
+        goto not_comment;
     }
-    goto not_comment;
 
     loop:
         fin->read(fin, &size, &c);
@@ -78,7 +77,7 @@ next_byte:
 
         /* Check if read byte is the end of the comment (i.e. a newline character),
          * in that case we continue processing */
-        if (c == '\n' || c == '\r') {
+        if (c == '\n') {
             goto next_byte;
         }
     goto loop;
@@ -114,8 +113,8 @@ not_comment:
     goto next_byte;
 
 terminate:
-    rootdir->close(fin);
-    rootdir->close(fout);
+    fin->close(fin);
+    fout->close(fout);
 
     return 0;
 }

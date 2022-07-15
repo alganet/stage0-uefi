@@ -1,9 +1,10 @@
 # SPDX-FileCopyrightText: 2022 Andrius Štikonas <andrius@stikonas.eu>
+# SPDX-FileCopyrightText: 2017 Jeremiah Orians <jeremiah@pdp10.guru>
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 # Usage hex0 file.hex0 file
-# Does not validate the arguments
+# Does not validate the arguments or check for success
 
 # Calling convention:
 # First four arguments are passed via registers rcx, rdx, r8, r9 (if they fit in 64-bits)
@@ -77,43 +78,186 @@ loop_options2:                             # Skip argv[1]
         mov  rcx, [rsp+64]                 # get rootfs
         add  rsp, 72                       # deallocate stacks
 
-        sub  rsp, 32                       # allocate stack
+        sub  rsp, 24                       # allocate stack
         lea  rdx, [RootDir]                # arg2 = &rootdir
         call [rcx+8]                       # rootfs->open_volume(rootfs, &rootdir)
 
         # Open file for writing
-        add  rsp, 32                       # deallocate stack
+        add  rsp, 24                       # deallocate stack
 
         mov  rcx, [RootDir]                # arg1 = rootdir
         pop  r8                            # arg3 = out
-        sub  rsp, 48                       # allocate stack
-        lea  rdx, [rsp+40]                 # arg2 = &fout
+        sub  rsp, 40                       # allocate stack
+        lea  rdx, [fout]                   # arg2 = &fout
         mov  r9, 0x8000000000000003        # arg4 = EFI_FILE_MODE_CREATE| EFI_FILE_MODE_WRITE | EFI_FILE_MODE_READ
         mov  qword ptr [rsp+32], 0         # arg5 = 0
         call [rcx+8]                       # rootdir->open()
 
         # Open file for reading
-        mov  r12, [rsp+40]                 # save fout
-        add  rsp, 48                       # deallocate stack
+        add  rsp, 40                       # deallocate stack
 
         mov  rcx, [RootDir]                # arg1 = rootdir
         pop  r8                            # arg3 = in
-        sub  rsp, 48                       # allocate stack
-        lea  rdx, [rsp+40]                 # arg2 = &fin
+        sub  rsp, 40                       # allocate stack
+        lea  rdx, [fin]                    # arg2 = &fin
         mov  r9, 1                         # arg4 = EFI_FILE_MODE_READ
         mov  qword ptr [rsp+32], 1         # arg5 = EFI_FILE_READ_ONLY
         call [rcx+8]                       # rootdir->open()
+        add  rsp, 40                       # deallocate stack
 
-        mov  r13, [rsp+40]                 # save fin
-        add  rsp, 48                       # deallocate stack
-Done:
+        # Our flag for byte processing
+        mov r15, -1
+
+        # temp storage for the sum
+        mov r14, 0
+
+loop:
+        # Read a byte
+        call read_byte
+
+        # process byte
+        call hex
+
+        # Deal with -1 values
+        cmp rax, 0
+        jl loop
+
+        # deal with toggle
+        cmp r15, 0
+        jge print
+
+        # process first byte of pair
+        mov r14, rax
+        mov r15, 0
+        jmp loop
+
+# process second byte of pair
+print:
+        # update the sum and store in output
+        shl r14, 4
+        add rax, r14
+        mov [output], al
+
+        # flip the toggle
+        mov r15, -1
+
+        call write_byte
+
+        jmp loop
+
+hex:
+        # Purge Comment Lines (#)
+        cmp rax, 35
+        je purge_comment
+
+        # Purge Comment Lines (;)
+        cmp rax, 59
+        je purge_comment
+
+        # deal all ascii less than 0
+        cmp rax, 48
+        jl ascii_other
+
+        # deal with 0-9
+        cmp rax, 58
+        jl ascii_num
+
+        # deal with all ascii less than A
+        cmp rax, 65
+        jl ascii_other
+
+        # deal with A-F
+        cmp rax, 71
+        jl ascii_high
+
+        # deal with all ascii less than a
+        cmp rax, 97
+        jl ascii_other
+
+        # deal with a-f
+        cmp rax, 103
+        jl ascii_low
+
+        # The rest that remains needs to be ignored
+        jmp ascii_other
+
+purge_comment:
+        # Read a byte
+        call read_byte
+
+        # Loop if not LF (works for CR/LF and LF/CR endings too)
+        cmp rax, 10
+        jne purge_comment
+
+        # Otherwise return -1
+        mov rax, -1
         ret
 
+ascii_num:
+        sub rax, 48
+        ret
+
+ascii_low:
+        sub rax, 87
+        ret
+
+ascii_high:
+        sub rax, 55
+        ret
+
+ascii_other:
+        mov rax, -1
+        ret
+
+terminate:
+        sub  rsp, 32                       # allocate stack
+        mov  rcx, [fin]                    # arg1 = fin
+        call [rcx+16]                      # fin->close()
+        mov  rcx, [fout]                   # arg1 = fout
+        call [rcx+16]                      # fout->close()
+
+        mov  rcx, [ImageHandle]            # arg1 = ImageHandle
+        mov  rdx, 0                        # exit code
+        mov  rax, [SystemBoot]
+        call [rax+216]                     # system->boot->exit(ImageHandle, 0)
+        add  rsp, 32                       # deallocate stack
+
+read_byte:
+        sub  rsp, 32                       # allocate stack
+        mov  qword ptr [size], 1           # size = 1
+        mov  rcx, [fin]                    # arg1 = fin
+        lea  rdx, [size]                   # arg2 = &size
+        lea  r8, [input]                   # arg3 = &input
+        call [rcx+32]                      # fin->read()
+        add  rsp, 32                       # deallocate stack
+
+        # If the file ended (0 bytes read) terminate
+        cmp  qword ptr [size], 0           # if size == 0
+        je   terminate                     # then we are done
+
+        movzx rax, byte ptr [input]        # save character to rax
+        ret                                # return
+
+write_byte:
+        sub  rsp, 32                       # allocate stack
+        mov  qword ptr [size], 1           # size = 1
+        mov  rcx, [fout]                   # arg1 = fout
+        lea  rdx, [size]                   # arg2 = &size
+        lea  r8, [output]                  # arg3 = &output
+        call [rcx+40]                      # fout->write()
+        add  rsp, 32                       # deallocate stack
+
+        ret                                # return
 .data
 
 ImageHandle: .quad 0
 SystemBoot: .quad 0
 RootDir: .quad 0
+fin: .quad 0
+fout: .quad 0
+size: .quad 0
+input: .byte 0
+output: .quad 0
 
 # Protocol GUIDs
 LOADED_IMAGE_PROTOCOL:
