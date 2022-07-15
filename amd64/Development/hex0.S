@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-# Usage hex0 file.hex0 file
+# Usage: hex0 file.hex0 file
 # Does not validate the arguments or check for success
 
 # Calling convention:
@@ -210,26 +210,23 @@ ascii_other:
         ret
 
 terminate:
-        sub  rsp, 32                       # allocate stack
+        sub  rsp, 8                        # allocate stack
         mov  rcx, [fin]                    # arg1 = fin
         call [rcx+16]                      # fin->close()
         mov  rcx, [fout]                   # arg1 = fout
         call [rcx+16]                      # fout->close()
 
-        mov  rcx, [ImageHandle]            # arg1 = ImageHandle
-        mov  rdx, 0                        # exit code
-        mov  rax, [SystemBoot]
-        call [rax+216]                     # system->boot->exit(ImageHandle, 0)
-        add  rsp, 32                       # deallocate stack
+        add  rsp, 16                       # deallocate stack
+        ret
 
 read_byte:
-        sub  rsp, 32                       # allocate stack
+        sub  rsp, 24                       # allocate stack
         mov  qword ptr [size], 1           # size = 1
         mov  rcx, [fin]                    # arg1 = fin
         lea  rdx, [size]                   # arg2 = &size
         lea  r8, [input]                   # arg3 = &input
         call [rcx+32]                      # fin->read()
-        add  rsp, 32                       # deallocate stack
+        add  rsp, 24                       # deallocate stack
 
         # If the file ended (0 bytes read) terminate
         cmp  qword ptr [size], 0           # if size == 0
@@ -239,13 +236,13 @@ read_byte:
         ret                                # return
 
 write_byte:
-        sub  rsp, 32                       # allocate stack
+        sub  rsp, 24                       # allocate stack
         mov  qword ptr [size], 1           # size = 1
         mov  rcx, [fout]                   # arg1 = fout
         lea  rdx, [size]                   # arg2 = &size
         lea  r8, [output]                  # arg3 = &output
         call [rcx+40]                      # fout->write()
-        add  rsp, 32                       # deallocate stack
+        add  rsp, 24                       # deallocate stack
 
         ret                                # return
 .data
