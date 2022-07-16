@@ -136,7 +136,6 @@ print:
         # update the sum and store in output
         shl r14, 4
         add rax, r14
-        mov [output], al
 
         # flip the toggle
         mov r15, -1
@@ -217,32 +216,36 @@ terminate:
         call [rcx+16]                      # fout->close()
 
         add  rsp, 16                       # deallocate stack
-        ret
+        ret                                # return to UEFI
 
 read_byte:
-        sub  rsp, 24                       # allocate stack
-        mov  qword ptr [size], 1           # size = 1
         mov  rcx, [fin]                    # arg1 = fin
-        lea  rdx, [size]                   # arg2 = &size
-        lea  r8, [input]                   # arg3 = &input
+        push 1                             # size = 1
+        mov  rdx, rsp                      # arg2 = &size
+        push 1                             # allocate stack
+        mov  r8, rsp                       # arg3 = &input
+        sub  rsp, 24                       # allocate stack
         call [rcx+32]                      # fin->read()
         add  rsp, 24                       # deallocate stack
+        pop  rax                           # save input to rax
+        pop  rbx                           # save size to rbx
 
         # If the file ended (0 bytes read) terminate
-        cmp  qword ptr [size], 0           # if size == 0
+        test rbx, rbx                      # if size == 0
         je   terminate                     # then we are done
 
-        movzx rax, byte ptr [input]        # save character to rax
         ret                                # return
 
+# Writes byte stored in al
 write_byte:
-        sub  rsp, 24                       # allocate stack
-        mov  qword ptr [size], 1           # size = 1
         mov  rcx, [fout]                   # arg1 = fout
-        lea  rdx, [size]                   # arg2 = &size
-        lea  r8, [output]                  # arg3 = &output
+        push 1                             # size = 1
+        mov  rdx, rsp                      # arg2 = &size
+        push rax                           # allocate stack
+        mov  r8, rsp                       # arg3 = &output
+        sub  rsp, 24                       # allocate stack
         call [rcx+40]                      # fout->write()
-        add  rsp, 24                       # deallocate stack
+        add  rsp, 40                       # deallocate stack
 
         ret                                # return
 .data
@@ -252,9 +255,6 @@ SystemBoot: .quad 0
 RootDir: .quad 0
 fin: .quad 0
 fout: .quad 0
-size: .quad 0
-input: .byte 0
-output: .quad 0
 
 # Protocol GUIDs
 LOADED_IMAGE_PROTOCOL:
