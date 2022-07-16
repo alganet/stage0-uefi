@@ -106,10 +106,11 @@ loop_options2:                             # Skip argv[1]
         add  rsp, 40                       # deallocate stack
 
         # Our flag for byte processing
-        mov r15, -1
+        push -1
+        pop r15                            # r15 = -1
 
         # temp storage for the sum
-        mov r14, 0
+        xor r14d, r14d                     # r14 = 0
 
 loop:
         # Read a byte
@@ -119,16 +120,16 @@ loop:
         call hex
 
         # Deal with -1 values
-        cmp rax, 0
+        test rax, rax
         jl loop
 
         # deal with toggle
-        cmp r15, 0
+        test r15, r15
         jge print
 
         # process first byte of pair
         mov r14, rax
-        mov r15, 0
+        xor r15d, r15d                     # r15 = 0
         jmp loop
 
 # process second byte of pair
@@ -138,7 +139,8 @@ print:
         add rax, r14
 
         # flip the toggle
-        mov r15, -1
+        push -1
+        pop r15                            # r15 = -1
 
         call write_byte
 
@@ -189,7 +191,8 @@ purge_comment:
         jne purge_comment
 
         # Otherwise return -1
-        mov rax, -1
+        push -1
+        pop rax                            # rax = -1
         ret
 
 ascii_num:
@@ -205,7 +208,8 @@ ascii_high:
         ret
 
 ascii_other:
-        mov rax, -1
+        push -1
+        pop rax                            # rax = -1
         ret
 
 terminate:
@@ -222,7 +226,7 @@ read_byte:
         mov  rcx, [fin]                    # arg1 = fin
         push 1                             # size = 1
         mov  rdx, rsp                      # arg2 = &size
-        push 1                             # allocate stack
+        push rbx                           # allocate stack
         mov  r8, rsp                       # arg3 = &input
         sub  rsp, 24                       # allocate stack
         call [rcx+32]                      # fin->read()
