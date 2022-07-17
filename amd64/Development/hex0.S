@@ -21,28 +21,27 @@
 .text
 
 _start:
-        mov  rbp, rsp                      # save stack
-        mov  r15, rcx                      # image_handle
-        mov  rax, [rdx+96]                 # system->boot
-        mov  r14, rax                      # save system->boot
+        mov  rbp, rsp                      # save stack pointer
+        mov  r15, rcx                      # save image_handle
+        mov  r14, [rdx+96]                 # save system->boot
 
         # Open Loaded Image protocol
-        sub  rsp, 72                       # allocate stack
-                                           # arg1 = ImageHandle
-        mov  rdx, [LOADED_IMAGE_PROTOCOL]  # EFI_LOADED_IMAGE_PROTOCOL_GUID (first 64 bits)
-        mov  [rsp+48], rdx                 # save onto stack
+        push rax                           # allocate stack for image
+        mov  r8, rsp                       # arg3 = &image
         mov  rdx, [LOADED_IMAGE_PROTOCOL+8]# EFI_LOADED_IMAGE_PROTOCOL_GUID (last 64 bits)
-        mov  [rsp+56], rdx                 # save onto stack
-        lea  rdx, [rsp+48]                 # arg2 = &EFI_LOADED_IMAGE_PROTOCOL_GUID
-        lea  r8, [rsp+64]                  # arg3 = &image
+        push rdx                           # push last 64 bits onto stack
+        mov  rdx, [LOADED_IMAGE_PROTOCOL]  # EFI_LOADED_IMAGE_PROTOCOL_GUID (first 64 bits)
+        push rdx                           # push first 64 bits onto stack
+        mov  rdx, rsp                      # arg2 = &guid
+        push 1                             # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
+        push 0                             # arg5 = NULL
         mov  r9, rcx                       # arg4 = image_handle
-        mov  qword ptr [rsp+32], 0         # arg5 = NULL
-        mov  qword ptr [rsp+40], 1         # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
-
-        call [rax+280]                     # system->boot->open_protocol();
+                                           # arg1 = ImageHandle (already set)
+        sub  rsp, 32                       # allocate stack
+        call [r14+280]                     # system->boot->open_protocol(image_handle, &guid, &image, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL);
+        mov  rax, [rsp+64]                 # get image
 
         # Command line args
-        mov  rax, [rsp+64]                 # get image
         mov  rcx, rax                      # save image
         mov  rax, [rax+56]                 # options = image->load_options
 
@@ -53,7 +52,6 @@ loop_options1:                             # Skip application name
         jne  loop_options1                 # then jump
 
         add  rax, 2                        # ++options
-        #push rax                           # in = options
         mov  r12, rax
 
 loop_options2:                             # Skip argv[1]
@@ -64,49 +62,50 @@ loop_options2:                             # Skip argv[1]
 
         mov  byte ptr [rax], 0             # *options = 0;
         add  rax, 2                        # ++options
-        #push  rax                           # out = options
         mov  r13, rax
 
         # Get root device
-        sub  rsp, 72                       # allocate stack
-        mov  rcx, [rcx+24]                 # arg1 = root_device = image->device
-        mov  rdx, [SIMPLE_FS_PROTOCOL]     # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (first 64 bits)
-        mov  [rsp+48], rdx                 # save onto stack
+        push rax                           # allocate stack for rootfs
+        mov  r8, rsp                       # arg3 = &rootfs
         mov  rdx, [SIMPLE_FS_PROTOCOL+8]   # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (last 64 bits)
-        mov  [rsp+56], rdx                 # save onto stack
-        lea  rdx, [rsp+48]                 # arg2 = &EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID
-        lea  r8, [rsp+64]                  # arg3 = &rootfs
+        push rdx                           # push last 64 bits onto stack
+        mov  rdx, [SIMPLE_FS_PROTOCOL]     # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (first 64 bits)
+        push rdx                           # push first 64 bits onto stack
+        mov  rdx, rsp                      # arg2 = &guid
+        push 1                             # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
+        push 0                             # arg5 = NULL
         mov  r9, r15                       # arg4 = image_handle
-        mov  qword ptr [rsp+32], 0         # arg5 = NULL
-        mov  qword ptr [rsp+40], 1         # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
-
-        mov  rax, r14                      # system->boot
-        call [rax+280]                     # system->boot->open_protocol();
+        mov  rcx, [rcx+24]                 # arg1 = root_device = image->device
+        sub  rsp, 32                       # allocate stack
+        call [r14+280]                     # system->boot->open_protocol(root_device, &guid, &rootfs, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL);
         mov  rcx, [rsp+64]                 # get rootfs
 
-        # Get root fs
-        sub  rsp, 24                       # allocate stack
-        lea  rdx, [rsp+16]                 # arg2 = &rootdir
+        # Get rootfs
+        push rdx                           # allocate stack for rootdir
+        mov  rdx, rsp                      # arg2 = &rootdir
+        sub  rsp, 16                       # allocate stack
         call [rcx+8]                       # rootfs->open_volume(rootfs, &rootdir)
         mov  rsi, [rsp+16]                 # save &rootdir
 
         # Open file for writing
-        sub  rsp, 48                       # allocate stack
-        mov  rcx, rsi                      # arg1 = rootdir
-        lea  rdx, [rsp+40]                 # arg2 = &fout
-        mov  r8, r13                       # arg3 = out
+        push rdx                           # allocate stack for fout
+        mov  rdx, rsp                      # arg2 = &fout
+        push 0                             # arg5 = 0
         mov  r9, 0x8000000000000003        # arg4 = EFI_FILE_MODE_CREATE| EFI_FILE_MODE_WRITE | EFI_FILE_MODE_READ
-        mov  qword ptr [rsp+32], 0         # arg5 = 0
+        mov  r8, r13                       # arg3 = out
+        mov  rcx, rsi                      # arg1 = rootdir
+        sub  rsp, 32                       # allocate stack
         call [rcx+8]                       # rootdir->open()
         mov  r13, [rsp+40]                 # get fout
 
         # Open file for reading
-        mov  rcx, rsi                      # arg1 = rootdir
-        mov  r8, r12                       # arg3 = in
-        sub  rsp, 48                       # allocate stack
-        lea  rdx, [rsp+40]                 # arg2 = &fin
+        push rdx                           # allocate stack for fin
+        mov  rdx, rsp                      # arg2 = &fin
+        push 1                             # arg5 = EFI_FILE_READ_ONLY
         mov  r9, 1                         # arg4 = EFI_FILE_MODE_READ
-        mov  qword ptr [rsp+32], 1         # arg5 = EFI_FILE_READ_ONLY
+        mov  r8, r12                       # arg3 = in
+        mov  rcx, rsi                      # arg1 = rootdir
+        sub  rsp, 32                       # allocate stack
         call [rcx+8]                       # rootdir->open()
         mov  r12, [rsp+40]                 # get fin
 
