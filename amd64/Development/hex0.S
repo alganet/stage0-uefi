@@ -98,7 +98,10 @@ loop_options2:                             # Skip argv[1]
         push rdx                           # allocate stack for fout
         mov  rdx, rsp                      # arg2 = &fout
         push 0                             # arg5 = 0
-        mov  r9, 0x8000000000000003        # arg4 = EFI_FILE_MODE_CREATE| EFI_FILE_MODE_WRITE | EFI_FILE_MODE_READ
+        push 7                             # to get 0x8000000000000003 we set the rightmost 3 bits
+        pop r9                             # and then do right rotation by 1
+        ror r9, 1                          # arg4 = EFI_FILE_MODE_CREATE| EFI_FILE_MODE_WRITE | EFI_FILE_MODE_READ
+
         mov  r8, r13                       # arg3 = out
         mov  rcx, r14                      # arg1 = rootdir
         push rax                           # allocate shadow stack space for UEFI function
@@ -112,7 +115,8 @@ loop_options2:                             # Skip argv[1]
         push rdx                           # allocate stack for fin
         mov  rdx, rsp                      # arg2 = &fin
         push 1                             # arg5 = EFI_FILE_READ_ONLY
-        mov  r9, 1                         # arg4 = EFI_FILE_MODE_READ
+        push 1                             # prepare to set arg4 to EFI_FILE_MODE_READ
+        pop  r9                            # arg4 = EFI_FILE_MODE_READ
         mov  r8, r12                       # arg3 = in
         mov  rcx, r14                      # arg1 = rootdir
         push rax                           # allocate shadow stack space for UEFI function
@@ -235,7 +239,7 @@ terminate:
         call [rcx+16]                      # fin->close()
         mov  rcx, r13                      # arg1 = fin
         call [rcx+16]                      # fout->close()
-
+abort: # used for debugging only
         mov rsp, rbp                       # restore stack
         ret                                # return to UEFI
 
