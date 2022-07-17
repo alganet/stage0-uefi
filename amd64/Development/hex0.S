@@ -11,10 +11,9 @@
 # but we need to leave stack space
 
 # Registers:
-#   rsi rootdir
 #   r12 in/fin: input file name, later reused for handle
 #   r13 out/fout: output file name, later reused for handle
-#   r14 system->boot from UEFI, later reused for hex0 algorithm
+#   r14 system->boot->open_protocol from UEFI, later reused for hex0 algorithm, later reused for rootdir
 #   r15 image_handle from UEFI, later reused for hex0 algorithm
 
 .global _start
@@ -23,7 +22,8 @@
 _start:
         mov  rbp, rsp                      # save stack pointer
         mov  r15, rcx                      # save image_handle
-        mov  r14, [rdx+96]                 # save system->boot
+        mov  r14, [rdx+96]                 # system->boot
+        mov  r14, [r14+280]                # system->boot->open_protocol
 
         # Open Loaded Image protocol
         push rax                           # allocate stack for image
@@ -38,7 +38,7 @@ _start:
         mov  r9, rcx                       # arg4 = image_handle
                                            # arg1 = ImageHandle (already set)
         sub  rsp, 32                       # allocate stack
-        call [r14+280]                     # system->boot->open_protocol(image_handle, &guid, &image, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL);
+        call r14                           # system->boot->open_protocol(image_handle, &guid, &image, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL);
         mov  rax, [rsp+64]                 # get image
 
         # Command line args
@@ -77,7 +77,7 @@ loop_options2:                             # Skip argv[1]
         mov  r9, r15                       # arg4 = image_handle
         mov  rcx, [rcx+24]                 # arg1 = root_device = image->device
         sub  rsp, 32                       # allocate stack
-        call [r14+280]                     # system->boot->open_protocol(root_device, &guid, &rootfs, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL);
+        call r14                           # system->boot->open_protocol(root_device, &guid, &rootfs, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL);
         mov  rcx, [rsp+64]                 # get rootfs
 
         # Get rootfs
@@ -85,7 +85,7 @@ loop_options2:                             # Skip argv[1]
         mov  rdx, rsp                      # arg2 = &rootdir
         sub  rsp, 16                       # allocate stack
         call [rcx+8]                       # rootfs->open_volume(rootfs, &rootdir)
-        mov  rsi, [rsp+16]                 # save &rootdir
+        mov  r14, [rsp+16]                 # save &rootdir
 
         # Open file for writing
         push rdx                           # allocate stack for fout
@@ -93,7 +93,7 @@ loop_options2:                             # Skip argv[1]
         push 0                             # arg5 = 0
         mov  r9, 0x8000000000000003        # arg4 = EFI_FILE_MODE_CREATE| EFI_FILE_MODE_WRITE | EFI_FILE_MODE_READ
         mov  r8, r13                       # arg3 = out
-        mov  rcx, rsi                      # arg1 = rootdir
+        mov  rcx, r14                      # arg1 = rootdir
         sub  rsp, 32                       # allocate stack
         call [rcx+8]                       # rootdir->open()
         mov  r13, [rsp+40]                 # get fout
@@ -104,7 +104,7 @@ loop_options2:                             # Skip argv[1]
         push 1                             # arg5 = EFI_FILE_READ_ONLY
         mov  r9, 1                         # arg4 = EFI_FILE_MODE_READ
         mov  r8, r12                       # arg3 = in
-        mov  rcx, rsi                      # arg1 = rootdir
+        mov  rcx, r14                      # arg1 = rootdir
         sub  rsp, 32                       # allocate stack
         call [rcx+8]                       # rootdir->open()
         mov  r12, [rsp+40]                 # get fin
