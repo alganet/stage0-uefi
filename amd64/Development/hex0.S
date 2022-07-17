@@ -92,7 +92,9 @@ loop_options2:                             # Skip argv[1]
         push rax                           # allocate shadow stack space for UEFI function
         push rax                           # allocate shadow stack space for UEFI function
         call [rcx+8]                       # rootfs->open_volume(rootfs, &rootdir)
-        mov  r14, [rsp+16]                 # save &rootdir
+        pop rax                            # deallocate stack
+        pop rax                            # deallocate stack
+        pop r14                            # save &rootdir
 
         # Open file for writing
         push rdx                           # allocate stack for fout
