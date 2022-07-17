@@ -37,7 +37,10 @@ _start:
         push 0                             # arg5 = NULL
         mov  r9, rcx                       # arg4 = image_handle
                                            # arg1 = ImageHandle (already set)
-        sub  rsp, 32                       # allocate stack
+        push rax                           # allocate shadow stack space for UEFI function
+        push rax                           # allocate shadow stack space for UEFI function
+        push rax                           # allocate shadow stack space for UEFI function
+        push rax                           # allocate shadow stack space for UEFI function
         call r14                           # system->boot->open_protocol(image_handle, &guid, &image, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL);
         mov  rax, [rsp+64]                 # get image
 
@@ -76,14 +79,18 @@ loop_options2:                             # Skip argv[1]
         push 0                             # arg5 = NULL
         mov  r9, r15                       # arg4 = image_handle
         mov  rcx, [rcx+24]                 # arg1 = root_device = image->device
-        sub  rsp, 32                       # allocate stack
+        push rax                           # allocate shadow stack space for UEFI function
+        push rax                           # allocate shadow stack space for UEFI function
+        push rax                           # allocate shadow stack space for UEFI function
+        push rax                           # allocate shadow stack space for UEFI function
         call r14                           # system->boot->open_protocol(root_device, &guid, &rootfs, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL);
         mov  rcx, [rsp+64]                 # get rootfs
 
         # Get rootfs
         push rdx                           # allocate stack for rootdir
         mov  rdx, rsp                      # arg2 = &rootdir
-        sub  rsp, 16                       # allocate stack
+        push rax                           # allocate shadow stack space for UEFI function
+        push rax                           # allocate shadow stack space for UEFI function
         call [rcx+8]                       # rootfs->open_volume(rootfs, &rootdir)
         mov  r14, [rsp+16]                 # save &rootdir
 
@@ -94,7 +101,10 @@ loop_options2:                             # Skip argv[1]
         mov  r9, 0x8000000000000003        # arg4 = EFI_FILE_MODE_CREATE| EFI_FILE_MODE_WRITE | EFI_FILE_MODE_READ
         mov  r8, r13                       # arg3 = out
         mov  rcx, r14                      # arg1 = rootdir
-        sub  rsp, 32                       # allocate stack
+        push rax                           # allocate shadow stack space for UEFI function
+        push rax                           # allocate shadow stack space for UEFI function
+        push rax                           # allocate shadow stack space for UEFI function
+        push rax                           # allocate shadow stack space for UEFI function
         call [rcx+8]                       # rootdir->open()
         mov  r13, [rsp+40]                 # get fout
 
@@ -105,7 +115,10 @@ loop_options2:                             # Skip argv[1]
         mov  r9, 1                         # arg4 = EFI_FILE_MODE_READ
         mov  r8, r12                       # arg3 = in
         mov  rcx, r14                      # arg1 = rootdir
-        sub  rsp, 32                       # allocate stack
+        push rax                           # allocate shadow stack space for UEFI function
+        push rax                           # allocate shadow stack space for UEFI function
+        push rax                           # allocate shadow stack space for UEFI function
+        push rax                           # allocate shadow stack space for UEFI function
         call [rcx+8]                       # rootdir->open()
         mov  r12, [rsp+40]                 # get fin
 
@@ -232,9 +245,13 @@ read_byte:
         mov  rdx, rsp                      # arg2 = &size
         push rbx                           # allocate stack
         mov  r8, rsp                       # arg3 = &input
-        sub  rsp, 24                       # allocate stack
+        push rax                           # allocate shadow stack space for UEFI function
+        push rax                           # allocate shadow stack space for UEFI function
+        push rax                           # allocate shadow stack space for UEFI function
         call [rcx+32]                      # fin->read()
-        add  rsp, 24                       # deallocate stack
+        pop rax                            # deallocate stack
+        pop rax                            # deallocate stack
+        pop rax                            # deallocate stack
         pop  rax                           # save input to rax
         pop  rbx                           # save size to rbx
 
@@ -251,7 +268,9 @@ write_byte:
         mov  rdx, rsp                      # arg2 = &size
         push rax                           # allocate stack
         mov  r8, rsp                       # arg3 = &output
-        sub  rsp, 24                       # allocate stack
+        push rax                           # allocate shadow stack space for UEFI function
+        push rax                           # allocate shadow stack space for UEFI function
+        push rax                           # allocate shadow stack space for UEFI function
         call [rcx+40]                      # fout->write()
         add  rsp, 40                       # deallocate stack
 
