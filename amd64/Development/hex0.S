@@ -9,12 +9,15 @@
 # Calling convention:
 # First four arguments are passed via registers rcx, rdx, r8, r9 (if they fit in 64-bits)
 # but we need to leave stack space
+# rax, rcx, rdx, r8, r9, r10 and r11 are volatile and can be changed by called function
 
 # Registers:
 #   r12 in/fin: input file name, later reused for handle
 #   r13 out/fout: output file name, later reused for handle
-#   r14 system->boot->open_protocol from UEFI, later reused for hex0 algorithm, later reused for rootdir
-#   r15 image_handle from UEFI, later reused for hex0 algorithm
+#   r14 system->boot->open_protocol from UEFI, later reused for rootdir
+#   r15 image_handle from UEFI
+
+# hex0 algorithm mostly follows stage0-posix version but uses rdi instead of rbp
 
 .global _start
 .text
@@ -118,10 +121,10 @@ loop_options2:                             # Skip argv[1]
 
         # Our flag for byte processing
         push -1
-        pop r15                            # r15 = -1
+        pop rbx                            # rbx = -1
 
         # temp storage for the sum
-        xor r14d, r14d                     # r14 = 0
+        xor edi, edi                       # edi = 0
 
 loop:
         # Read a byte
@@ -131,27 +134,26 @@ loop:
         call hex
 
         # Deal with -1 values
-        test rax, rax
+        test eax, eax
         jl loop
 
         # deal with toggle
-        test r15, r15
+        test ebx, ebx                      # jump if ebx >= 0
         jge print
 
         # process first byte of pair
-        mov r14, rax
-        xor r15d, r15d                     # r15 = 0
+        mov edi, eax
+        xor ebx, ebx                       # ebx = 0
         jmp loop
 
 # process second byte of pair
 print:
         # update the sum and store in output
-        shl r14, 4
-        add rax, r14
+        shl edi, 4
+        add eax, edi
 
         # flip the toggle
-        push -1
-        pop r15                            # r15 = -1
+        dec ebx                            # rbx = -1
 
         call write_byte
 
@@ -159,35 +161,35 @@ print:
 
 hex:
         # Purge Comment Lines (#)
-        cmp rax, 35
+        cmp al, 35
         je purge_comment
 
         # Purge Comment Lines (;)
-        cmp rax, 59
+        cmp al, 59
         je purge_comment
 
         # deal all ascii less than 0
-        cmp rax, 48
+        cmp al, 48
         jl ascii_other
 
         # deal with 0-9
-        cmp rax, 58
+        cmp al, 58
         jl ascii_num
 
         # deal with all ascii less than A
-        cmp rax, 65
+        cmp al, 65
         jl ascii_other
 
         # deal with A-F
-        cmp rax, 71
+        cmp al, 71
         jl ascii_high
 
         # deal with all ascii less than a
-        cmp rax, 97
+        cmp al, 97
         jl ascii_other
 
         # deal with a-f
-        cmp rax, 103
+        cmp al, 103
         jl ascii_low
 
         # The rest that remains needs to be ignored
@@ -198,62 +200,26 @@ purge_comment:
         call read_byte
 
         # Loop if not LF (works for CR/LF and LF/CR endings too)
-        cmp rax, 10
+        cmp al, 10
         jne purge_comment
 
         # Otherwise return -1
-        push -1
-        pop rax                            # rax = -1
-        ret
-
-ascii_num:
-        sub rax, 48
-        ret
-
-ascii_low:
-        sub rax, 87
-        ret
-
-ascii_high:
-        sub rax, 55
-        ret
 
 ascii_other:
         push -1
-        pop rax                            # rax = -1
+        pop rax                            # return = -1
         ret
 
-terminate:
-        push rbx                           # allocate stack
-        mov  rcx, r12                      # arg1 = fin
-        call [rcx+16]                      # fin->close()
-        mov  rcx, r13                      # arg1 = fin
-        call [rcx+16]                      # fout->close()
-abort: # used for debugging only
-        mov rsp, rbp                       # restore stack
-        ret                                # return to UEFI
+ascii_num:
+        sub al, 48
+        ret
 
-read_byte:
-        mov  rcx, r12                      # arg1 = fin
-        push 1                             # size = 1
-        mov  rdx, rsp                      # arg2 = &size
-        push rbx                           # allocate stack
-        mov  r8, rsp                       # arg3 = &input
-        push rax                           # allocate shadow stack space for UEFI function
-        push rax                           # allocate shadow stack space for UEFI function
-        push rax                           # allocate shadow stack space for UEFI function
-        call [rcx+32]                      # fin->read()
-        pop rax                            # deallocate stack
-        pop rax                            # deallocate stack
-        pop rax                            # deallocate stack
-        pop  rax                           # save input to rax
-        pop  rbx                           # save size to rbx
+ascii_low:
+        sub al, 32                         # convert to uppercase
 
-        # If the file ended (0 bytes read) terminate
-        test rbx, rbx                      # if size == 0
-        je   terminate                     # then we are done
-
-        ret                                # return
+ascii_high:
+        sub al, 55
+        ret
 
 # Writes byte stored in al
 write_byte:
@@ -269,6 +235,39 @@ write_byte:
         add  rsp, 40                       # deallocate stack
 
         ret                                # return
+
+read_byte:
+        mov  rcx, r12                      # arg1 = fin
+        push 1                             # size = 1
+        mov  rdx, rsp                      # arg2 = &size
+        push rsi                           # allocate stack
+        mov  r8, rsp                       # arg3 = &input
+        push rax                           # allocate shadow stack space for UEFI function
+        push rax                           # allocate shadow stack space for UEFI function
+        push rax                           # allocate shadow stack space for UEFI function
+        call [rcx+32]                      # fin->read()
+        pop  rax                           # deallocate stack
+        pop  rax                           # deallocate stack
+        pop  rax                           # deallocate stack
+        pop  rax                           # save input to rax
+        pop  rsi                           # save size to rsi
+
+        # If the file ended (0 bytes read) terminate
+        test rsi, rsi                      # if size == 0
+        je   terminate                     # then we are done
+
+        ret                                # return
+
+terminate:
+        push rbx                           # allocate stack
+        mov  rcx, r12                      # arg1 = fin
+        call [rcx+16]                      # fin->close()
+        mov  rcx, r13                      # arg1 = fin
+        call [rcx+16]                      # fout->close()
+abort: # used for debugging only
+        mov rsp, rbp                       # restore stack
+        ret                                # return to UEFI
+
 .data
 
 # Protocol GUIDs
