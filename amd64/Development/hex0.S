@@ -22,6 +22,7 @@
 .global _start
 .text
 
+# efi_main(void *image_handle, struct efi_system_table *system)
 _start:
         mov  rbp, rsp                      # save stack pointer
         mov  r15, rcx                      # save image_handle
@@ -41,31 +42,31 @@ _start:
         mov  r9, rcx                       # arg4 = image_handle
                                            # arg1 = ImageHandle (already set)
         sub  esp, 32                       # allocate shadow stack space for UEFI function
-        call r14                           # system->boot->open_protocol(image_handle, &guid, &image, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL);
+        call r14                           # system->boot->open_protocol(image_handle, &guid, &image, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
         mov  rax, [rsp+64]                 # get image
 
         # Command line args
         mov  rcx, rax                      # save image
-        mov  rax, [rax+56]                 # options = image->load_options
+        mov  rbx, [rax+56]                 # options = image->load_options
 
 loop_options1:                             # Skip application name
-        add  rax, 2                        # ++options
-        mov  bl, [rax]                     # *options
-        cmp  bl, 0x20                      # if *options != ' '
+        add  rbx, 2                        # ++options
+        mov  al, [rbx]                     # *options
+        cmp  al, 0x20                      # if *options != ' '
         jne  loop_options1                 # then jump
 
-        add  rax, 2                        # ++options
-        mov  r12, rax
+        add  rbx, 2                        # ++options
+        mov  r12, rbx
 
 loop_options2:                             # Skip argv[1]
-        add  rax, 2                        # ++options
-        mov  bl, [rax]                     # *options
-        cmp  bl, 0x20                      # if *options != ' '
+        add  rbx, 2                        # ++options
+        mov  al, [rbx]                     # *options
+        cmp  al, 0x20                      # if *options != ' '
         jne  loop_options2                 # then jump
 
-        mov  byte ptr [rax], 0             # *options = 0;
-        add  rax, 2                        # ++options
-        mov  r13, rax
+        mov  byte ptr [rbx], 0             # *options = 0;
+        add  rbx, 2                        # ++options
+        mov  r13, rbx
 
         # Get root device
         push rax                           # allocate stack for rootfs
