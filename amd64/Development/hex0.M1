@@ -72,7 +72,7 @@ DEFINE RET                 C3
 DEFINE ROR_R9              49D1C9
 DEFINE SHL_EBP_Immediate8  C1E5
 DEFINE STOREI8_into_Address_RBX CB03
-DEFINE SUBI8_ESP           83EC
+DEFINE SUBI8_RSP           4883EC
 DEFINE SUBI8_AL            2C
 DEFINE XOR_EBX_EBX         31DB
 DEFINE XOR_EDI_EDI         31FF
@@ -99,7 +99,7 @@ DEFINE TEST_ESI_ESI        85F6
     PUSH !0                                           # arg5 = NULL
     COPY_R8_to_RSP                                    # arg4 = image_handle
                                                       # arg1 = ImageHandle (already set)
-    SUBI8_ESP !32                                     # allocate shadow stack space for UEFI function
+    SUBI8_RSP !32                                     # allocate shadow stack space for UEFI function
     CALL_R14                                          # system->boot->open_protocol(image_handle, &guid, &image, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
     LOAD64_into_RAX_from_Address_RSP_Immediate8 !64   # get_image
 
@@ -138,7 +138,7 @@ DEFINE TEST_ESI_ESI        85F6
     PUSH !0                                           # arg5 = NULL
     COPY_R8_to_RSP                                    # arg4 = image_handle
     LOAD64_into_RCX_from_Address_RCX_Immediate8 !24   # arg1 = root_device = image->device
-    SUBI8_ESP !32                                     # allocate shadow stack space for UEFI function
+    SUBI8_RSP !32                                     # allocate shadow stack space for UEFI function
     CALL_R14                                          # system->boot->open_protocol(root_device, &guid, &rootfs, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
     LOAD64_into_RCX_from_Address_RSP_Immediate8 !64   # get rootfs
 
@@ -161,7 +161,7 @@ DEFINE TEST_ESI_ESI        85F6
     ROR_R9                                            # arg4 = EFI_FILE_MODE_CREATE| EFI_FILE_MODE_WRITE | EFI_FILE_MODE_READ
     COPY_R13_to_R8                                    # arg3 = out
     COPY_R14_to_RCX                                   # arg1 = rootdir
-    SUBI8_ESP !32                                     # allocate shadow stack space for UEFI function
+    SUBI8_RSP !32                                     # allocate shadow stack space for UEFI function
     CALL_RCX_Immediate8 !8                            # rootdir->open()
     LOAD64_into_R13_from_Address_RSP_Immediate8 !40   # get fout
 
@@ -173,7 +173,7 @@ DEFINE TEST_ESI_ESI        85F6
     POP_R9                                            # arg4 = EFI_FILE_MODE_READ
     COPY_R12_to_R8                                    # arg3 = in
     COPY_R14_to_RCX                                   # arg1 = rootdir
-    SUBI8_ESP !32                                     # allocate shadow stack space for UEFI function
+    SUBI8_RSP !32                                     # allocate shadow stack space for UEFI function
     CALL_RCX_Immediate8 !8                            # rootdir->open()
     LOAD64_into_R12_from_Address_RSP_Immediate8 !40   # get fin
 
