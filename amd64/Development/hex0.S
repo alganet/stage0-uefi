@@ -56,7 +56,7 @@ loop_options1:                             # Skip application name
         jne  loop_options1                 # then jump
 
         add  rbx, 2                        # ++options
-        mov  r12, rbx
+        mov  r12, rbx                      # save input file
 
 loop_options2:                             # Skip argv[1]
         add  rbx, 2                        # ++options
@@ -66,7 +66,7 @@ loop_options2:                             # Skip argv[1]
 
         mov  byte ptr [rbx], 0             # *options = 0;
         add  rbx, 2                        # ++options
-        mov  r13, rbx
+        mov  r13, rbx                      # save output file
 
         # Get root device
         push rax                           # allocate stack for rootfs
@@ -84,7 +84,7 @@ loop_options2:                             # Skip argv[1]
         call r14                           # system->boot->open_protocol(root_device, &guid, &rootfs, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL);
         mov  rcx, [rsp+64]                 # get rootfs
 
-        # Get rootfs
+        # Get root directory
         push rdx                           # allocate stack for rootdir
         mov  rdx, rsp                      # arg2 = &rootdir
         push rax                           # allocate shadow stack space for UEFI function
@@ -100,8 +100,7 @@ loop_options2:                             # Skip argv[1]
         push 0                             # arg5 = 0
         push 7                             # to get 0x8000000000000003 we set the rightmost 3 bits
         pop r9                             # and then do right rotation by 1
-        ror r9, 1                          # arg4 = EFI_FILE_MODE_CREATE| EFI_FILE_MODE_WRITE | EFI_FILE_MODE_READ
-
+        ror r9                             # arg4 = EFI_FILE_MODE_CREATE| EFI_FILE_MODE_WRITE | EFI_FILE_MODE_READ
         mov  r8, r13                       # arg3 = out
         mov  rcx, r14                      # arg1 = rootdir
         sub  esp, 32                       # allocate shadow stack space for UEFI function
@@ -125,7 +124,7 @@ loop_options2:                             # Skip argv[1]
         pop rbx                            # rbx = -1
 
         # temp storage for the sum
-        xor edi, edi                       # edi = 0
+        xor edi, edi                       # rdi = 0
 
 loop:
         # Read a byte
@@ -144,7 +143,7 @@ loop:
 
         # process first byte of pair
         mov edi, eax
-        xor ebx, ebx                       # ebx = 0
+        xor ebx, ebx                       # rbx = 0
         jmp loop
 
 # process second byte of pair
@@ -254,7 +253,7 @@ read_byte:
         pop  rsi                           # save size to rsi
 
         # If the file ended (0 bytes read) terminate
-        test rsi, rsi                      # if size == 0
+        test esi, esi                      # if size == 0
         je   terminate                     # then we are done
 
         ret                                # return
@@ -263,7 +262,7 @@ terminate:
         push rbx                           # allocate stack
         mov  rcx, r12                      # arg1 = fin
         call [rcx+16]                      # fin->close()
-        mov  rcx, r13                      # arg1 = fin
+        mov  rcx, r13                      # arg1 = fout
         call [rcx+16]                      # fout->close()
 abort: # used for debugging only
         mov rsp, rbp                       # restore stack
