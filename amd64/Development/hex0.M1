@@ -58,7 +58,7 @@ DEFINE LOAD64_into_R14_from_Address_RDX_Immediate8  4C8B72
 DEFINE LOAD64_into_R14_from_Address_R14_Immediate32 4D8BB6
 DEFINE LOAD8_AL_from_Address_RBX 8A03
 DEFINE LOADI64_RDX         48C7C2
-DEFINE POP_RAX             50
+DEFINE POP_RAX             58
 DEFINE POP_RBX             5B
 DEFINE POP_RSI             5E
 DEFINE POP_R9              4159
