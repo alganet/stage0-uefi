@@ -21,8 +21,8 @@
 
 # DOS MZ header
 4D 5A                           # Signature
-78 00                           # Number of bytes in the last page.
-01 00                           # Number of whole/partial pages
+00 00                           # Number of bytes in the last page.
+00 00                           # Number of whole/partial pages
 00 00                           # Number of entries in the relocation table.
 04 00                           # Header size
 00 00                           # Minimum allocation
