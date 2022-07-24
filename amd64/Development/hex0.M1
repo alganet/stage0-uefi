@@ -31,8 +31,9 @@ DEFINE COPY_EAX_to_EDI     89C7
 DEFINE COPY_RBX_to_R12     4989DC
 DEFINE COPY_RBX_to_R13     4989DD
 DEFINE COPY_RCX_to_RAX     4889C1
-DEFINE COPY_RDX_to_RSP     4889E2
 DEFINE COPY_RSP_to_RBP     4889E5
+DEFINE COPY_RSP_to_RDX     4889E2
+DEFINE COPY_RSP_to_R8      4989E0
 DEFINE COPY_RBP_to_RSP     4889EC
 DEFINE COPY_R8_to_RSP      4989E0
 DEFINE COPY_RCX_to_R9      4989C9
@@ -41,7 +42,8 @@ DEFINE COPY_R12_to_R8      4D89E0
 DEFINE COPY_R13_to_RCX     4C89E9
 DEFINE COPY_R13_to_R8      4D89E8
 DEFINE COPY_R14_to_RCX     4C89F1
-DEFINE COPY_R15_to_RCX     4889CF
+DEFINE COPY_R15_to_RCX     4989CF
+DEFINE COPY_R15_to_R9      4D89F9
 DEFINE DEC_EBX             FFCB
 DEFINE JE8                 74
 DEFINE JGE8                7D
@@ -57,7 +59,7 @@ DEFINE LOAD64_into_R13_from_Address_RSP_Immediate8  4C8B6C24
 DEFINE LOAD64_into_R14_from_Address_RDX_Immediate8  4C8B72
 DEFINE LOAD64_into_R14_from_Address_R14_Immediate32 4D8BB6
 DEFINE LOAD8_AL_from_Address_RBX 8A03
-DEFINE LOADI64_rel_RDX     488905
+DEFINE LOADI64_rel_RDX     488B15
 DEFINE POP_RAX             58
 DEFINE POP_RBX             5B
 DEFINE POP_RSI             5E
@@ -70,8 +72,8 @@ DEFINE PUSH_RDX            52
 DEFINE PUSH_RSI            56
 DEFINE RET                 C3
 DEFINE ROR_R9              49D1C9
-DEFINE SHL_EBP_Immediate8  C1E5
-DEFINE STOREI8_into_Address_RBX CB03
+DEFINE SHL_EDI_Immediate8  C1E7
+DEFINE STOREI8_into_Address_RBX C603
 DEFINE SUBI8_RSP           4883EC
 DEFINE SUBI8_AL            2C
 DEFINE XOR_EBX_EBX         31DB
@@ -89,15 +91,15 @@ DEFINE TEST_ESI_ESI        85F6
 
     # Open Loaded Image protocol
     PUSH_RAX                                          # allocate stack for image
-    COPY_R8_to_RSP                                    # arg3 = &image
+    COPY_RSP_to_R8                                    # arg3 = &image
     LOADI64_rel_RDX %LOADED_IMAGE_PROTOCOL_8          # EFI_LOADED_IMAGE_PROTOCOL_GUID (last 64 bits)
     PUSH_RDX                                          # push last 64 bits onto stack
     LOADI64_rel_RDX %LOADED_IMAGE_PROTOCOL            # EFI_LOADED_IMAGE_PROTOCOL_GUID (first 64 bits)
     PUSH_RDX                                          # push first 64 bits onto stack
-    COPY_RDX_to_RSP                                   # arg2 = &guid
+    COPY_RSP_to_RDX                                   # arg2 = &guid
     PUSH !1                                           # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
     PUSH !0                                           # arg5 = NULL
-    COPY_R8_to_RSP                                    # arg4 = image_handle
+    COPY_RCX_to_R9                                    # arg4 = image_handle
                                                       # arg1 = ImageHandle (already set)
     SUBI8_RSP !32                                     # allocate shadow stack space for UEFI function
     CALL_R14                                          # system->boot->open_protocol(image_handle, &guid, &image, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
@@ -122,21 +124,21 @@ DEFINE TEST_ESI_ESI        85F6
     CMPI8_AL !0x20                                    # if *options != ' '
     JNE8 !loop_options2                               # then jump
 
-    STOREI8_into_Address_RBX                          # *options = 0;
+    STOREI8_into_Address_RBX !0                       # *options = 0;
     ADDI8_RBX !2                                      # ++options
     COPY_RBX_to_R13                                   # save output file
 
     # Get root device
     PUSH_RAX                                          # allocate stack for rootfs
-    COPY_R8_to_RSP                                    # arg3 = &rootfs
+    COPY_RSP_to_R8                                    # arg3 = &rootfs
     LOADI64_rel_RDX %SIMPLE_FS_PROTOCOL_8             # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (last 64 bits)
     PUSH_RDX                                          # push last 64 bits onto stack
     LOADI64_rel_RDX %SIMPLE_FS_PROTOCOL               # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (first 64 bits)
     PUSH_RDX                                          # push first 64 bits onto stack
-    COPY_RDX_to_RSP                                   # arg2 = &guid
+    COPY_RSP_to_RDX                                   # arg2 = &guid
     PUSH !1                                           # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
     PUSH !0                                           # arg5 = NULL
-    COPY_R8_to_RSP                                    # arg4 = image_handle
+    COPY_R15_to_R9                                    # arg4 = image_handle
     LOAD64_into_RCX_from_Address_RCX_Immediate8 !24   # arg1 = root_device = image->device
     SUBI8_RSP !32                                     # allocate shadow stack space for UEFI function
     CALL_R14                                          # system->boot->open_protocol(root_device, &guid, &rootfs, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
@@ -144,7 +146,7 @@ DEFINE TEST_ESI_ESI        85F6
 
     # Get root directory
     PUSH_RDX                                          # allocate stack for rootdir
-    COPY_RDX_to_RSP                                   # arg2 = &rootdir
+    COPY_RSP_to_RDX                                   # arg2 = &rootdir
     PUSH_RAX                                          # allocate shadow stack space for UEFI function
     PUSH_RAX                                          # allocate shadow stack space for UEFI function
     CALL_RCX_Immediate8 !8                            # rootfs->open_volume(rootfs, &rootdir)
@@ -154,7 +156,7 @@ DEFINE TEST_ESI_ESI        85F6
 
     # Open file for writing
     PUSH_RDX                                          # allocate stack for fout
-    COPY_RDX_to_RSP                                   # arg2 = &fout
+    COPY_RSP_to_RDX                                   # arg2 = &fout
     PUSH !0                                           # arg5 = 0
     PUSH !7                                           # to get 0x8000000000000003 we set the rightmost 3 bits
     POP_R9                                            # and then do right rotation by 1
@@ -167,7 +169,7 @@ DEFINE TEST_ESI_ESI        85F6
 
     # Open file for reading
     PUSH_RDX                                          # allocate stack for fin
-    COPY_RDX_to_RSP                                   # arg2 = &fin
+    COPY_RSP_to_RDX                                   # arg2 = &fin
     PUSH !1                                           # arg5 = EFI_FILE_READ_ONLY
     PUSH !1                                           # prepare to set arg4 to EFI_FILE_MODE_READ
     POP_R9                                            # arg4 = EFI_FILE_MODE_READ
@@ -207,7 +209,7 @@ DEFINE TEST_ESI_ESI        85F6
 # process second byte of pair
 :print
     # update the sum and store in output
-    SHL_EBP_Immediate8 !4
+    SHL_EDI_Immediate8 !4
     ADD_EAX_EDI
 
     # flip the toggle
@@ -283,9 +285,9 @@ DEFINE TEST_ESI_ESI        85F6
 :write_byte
     COPY_R13_to_RCX                                   # arg1 = fout
     PUSH !1                                           # size = 1
-    COPY_RDX_to_RSP                                   # arg2 = &size
+    COPY_RSP_to_RDX                                   # arg2 = &size
     PUSH_RAX                                          # allocate stack
-    COPY_R8_to_RSP                                    # arg3 = &output
+    COPY_RSP_to_R8                                    # arg3 = &output
     PUSH_RAX                                          # allocate shadow stack space for UEFI function
     PUSH_RAX                                          # allocate shadow stack space for UEFI function
     PUSH_RAX                                          # allocate shadow stack space for UEFI function
@@ -297,9 +299,9 @@ DEFINE TEST_ESI_ESI        85F6
 :read_byte
     COPY_R12_to_RCX                                   # arg1 = fin
     PUSH !1                                           # size = 1
-    COPY_RDX_to_RSP                                   # arg2 = &size
+    COPY_RSP_to_RDX                                   # arg2 = &size
     PUSH_RSI                                          # allocate stack
-    COPY_R8_to_RSP                                    # arg3 = &input
+    COPY_RSP_to_R8                                    # arg3 = &input
     PUSH_RAX                                          # allocate shadow stack space for UEFI function
     PUSH_RAX                                          # allocate shadow stack space for UEFI function
     PUSH_RAX                                          # allocate shadow stack space for UEFI function
