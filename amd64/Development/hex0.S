@@ -32,9 +32,9 @@ _start:
         # Open Loaded Image protocol
         push rax                           # allocate stack for image
         mov  r8, rsp                       # arg3 = &image
-        mov  rdx, [LOADED_IMAGE_PROTOCOL+8]# EFI_LOADED_IMAGE_PROTOCOL_GUID (last 64 bits)
+        mov  rdx, [rip+LOADED_IMAGE_PROTOCOL+8] # EFI_LOADED_IMAGE_PROTOCOL_GUID (last 64 bits)
         push rdx                           # push last 64 bits onto stack
-        mov  rdx, [LOADED_IMAGE_PROTOCOL]  # EFI_LOADED_IMAGE_PROTOCOL_GUID (first 64 bits)
+        mov  rdx, [rip+LOADED_IMAGE_PROTOCOL] # EFI_LOADED_IMAGE_PROTOCOL_GUID (first 64 bits)
         push rdx                           # push first 64 bits onto stack
         mov  rdx, rsp                      # arg2 = &guid
         push 1                             # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
@@ -71,9 +71,9 @@ loop_options2:                             # Skip argv[1]
         # Get root device
         push rax                           # allocate stack for rootfs
         mov  r8, rsp                       # arg3 = &rootfs
-        mov  rdx, [SIMPLE_FS_PROTOCOL+8]   # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (last 64 bits)
+        mov  rdx, [rip+SIMPLE_FS_PROTOCOL+8] # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (last 64 bits)
         push rdx                           # push last 64 bits onto stack
-        mov  rdx, [SIMPLE_FS_PROTOCOL]     # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (first 64 bits)
+        mov  rdx, [rip+SIMPLE_FS_PROTOCOL] # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (first 64 bits)
         push rdx                           # push first 64 bits onto stack
         mov  rdx, rsp                      # arg2 = &guid
         push 1                             # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
