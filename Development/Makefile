@@ -41,7 +41,7 @@ qemu: $(build_dir)/disk.img $(OVMF_IMG)
 	-drive if=pflash,format=raw,unit=0,file=$(OVMF_IMG),readonly=on \
 	-drive if=ide,format=raw,file=$<
 
-all : $(targets2)
+all: $(targets2)
 
 $(build_dir)/disk.img: $(build_dir)/esp.img
 	dd if=/dev/zero of=$@ bs=512 count=$(DISK_SIZE_SECTORS)
@@ -55,11 +55,12 @@ $(build_dir)/esp.img: rootfs
 	mformat -i $@ -h 32 -t 32 -n 64 -c 1
 	mcopy -s -i $@ $(rootfs_dir)/* ::
 
-rootfs: $(targets2)
+rootfs: $(targets2) $(sources)
 	cp -R rootfs $(build_dir)
 	mkdir -p $(rootfs_dir)/EFI/BOOT/
 	cp $^ $(rootfs_dir)/EFI/BOOT/
 	mv $(rootfs_dir)/EFI/BOOT/kaem-minimal.efi $(rootfs_dir)/EFI/BOOT/BOOTX64.EFI
+	cp ../amd64/hex0.hex0 $(rootfs_dir)/hex0_amd64.hex0
 
 clean:
 	rm -rf $(build_dir)
