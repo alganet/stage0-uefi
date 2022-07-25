@@ -2,3 +2,5 @@
 
 # Rebuild hex0
 EFI\BOOT\hex0.efi hex0_amd64.hex0 hex0.efi
+# test
+hex0.efi hex0_amd64.hex0 hex0a.efi

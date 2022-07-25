@@ -66,6 +66,7 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
     unsigned int i;
     uint8_t c;
     efi_uint_t size = 1;
+    efi_uint_t file_size = 1;
     efi_uint_t return_code;
     void *executable;
     efi_handle_t child_ih;
@@ -121,14 +122,14 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
         }
 
         struct efi_file_info *file_info;
-        size = sizeof(struct efi_file_info);
-        system->boot->allocate_pool(EFI_LOADER_DATA, size, (void **) &file_info);
-        fcmd->get_info(fcmd, &guid3, &size, file_info);
-        size = file_info->file_size;
+        file_size = sizeof(struct efi_file_info);
+        system->boot->allocate_pool(EFI_LOADER_DATA, file_size, (void **) &file_info);
+        fcmd->get_info(fcmd, &guid3, &file_size, file_info);
+        file_size = file_info->file_size;
         system->boot->free_pool(file_info);
 
-        system->boot->allocate_pool(EFI_LOADER_CODE, size, (void **) &executable);
-        fcmd->read(fcmd, &size, executable);
+        system->boot->allocate_pool(EFI_LOADER_CODE, file_size, (void **) &executable);
+        fcmd->read(fcmd, &file_size, executable);
 
         struct efi_device_path_protocol *device_path;
         system->boot->allocate_pool(EFI_LOADER_DATA, 4 + sizeof(struct efi_device_path_protocol), (void **) &device_path);
@@ -137,12 +138,12 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
         device_path->length = sizeof(struct efi_device_path_protocol);
         device_path->memory_type = EFI_LOADER_CODE;
         device_path->start_address = (uint64_t) executable;
-        device_path->end_address = (uint64_t) executable + size;
+        device_path->end_address = (uint64_t) executable + file_size;
         device_path[1].type = END_HARDWARE_DEVICE_PATH;
         device_path[1].subtype = END_ENTIRE_DEVICE_PATH;
         device_path[1].length = 4;
 
-        system->boot->load_image(0, image_handle, device_path, executable, size, &child_ih);
+        system->boot->load_image(0, image_handle, device_path, executable, file_size, &child_ih);
         system->boot->free_pool(device_path);
         system->boot->free_pool(executable);
 
