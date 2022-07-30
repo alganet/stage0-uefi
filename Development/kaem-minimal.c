@@ -62,7 +62,6 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
     system->boot->allocate_pool(EFI_LOADER_DATA, 2 * max_string, (void **) &command);
 
     unsigned int command_length = 0; /* length of command without arguments */
-    unsigned int options_length = 0; /* length of command with arguments */
     unsigned int i;
     uint8_t c;
     efi_uint_t size = 1;
@@ -103,7 +102,6 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
         if (command_length == 0 ) {
             continue;
         }
-        options_length = i;
         command[i] = 0;
 
         system->out->output_string(system->out, L" +> ");
@@ -120,6 +118,9 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
             rootdir->close(fin);
             return status;
         }
+
+        /* Deal with command line arguments */
+        command[command_length] = ' ';
 
         struct efi_file_info *file_info;
         file_size = sizeof(struct efi_file_info);
@@ -148,12 +149,10 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
         system->boot->free_pool(device_path);
         system->boot->free_pool(executable);
 
-        /* Deal with command line arguments */
-        command[command_length] = ' ';
         system->boot->open_protocol(child_ih, &guid1, (void **) &child_image, child_ih, 0,
                                 EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL);
         child_image->load_options = command;
-        child_image->load_options_size = options_length;
+        child_image->load_options_size = i;
         child_image->device = image->device;
 
         /* Run command */
