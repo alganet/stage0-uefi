@@ -7,7 +7,7 @@
 
 #include "efi/efi.h"
 
-#define max_string 512
+#define max_string 2048
 
 #define HARDWARE_DEVICE_PATH 1
 #define END_HARDWARE_DEVICE_PATH 0x7F
@@ -44,11 +44,11 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
         script_file = ++options;
     }
 
-    /* Get root device */
+    /* Get root file system */
     efi_handle_t root_device = image->device;
     system->boot->open_protocol(root_device, &guid2, (void **) &rootfs, image_handle, 0,
                                 EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL);
-    /* Get root fs */
+    /* Get root directory */
     rootfs->open_volume(rootfs, &rootdir);
 
     /* Open file for reading */
@@ -66,7 +66,7 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
     unsigned int i;
     uint8_t c;
     efi_uint_t size = 1;
-    efi_uint_t file_size = 1;
+    efi_uint_t file_size;
     efi_uint_t return_code;
     void *executable;
     efi_handle_t child_ih;
@@ -130,6 +130,7 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
 
         system->boot->allocate_pool(EFI_LOADER_CODE, file_size, (void **) &executable);
         fcmd->read(fcmd, &file_size, executable);
+        fcmd->close(fcmd);
 
         struct efi_device_path_protocol *device_path;
         system->boot->allocate_pool(EFI_LOADER_DATA, 4 + sizeof(struct efi_device_path_protocol), (void **) &device_path);
@@ -161,6 +162,7 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
         if(return_code != 0) {
             system->boot->free_pool(command);
             system->out->output_string(system->out, L"Subprocess error.\r\n");
+            rootdir->close(fin);
             return return_code;
         }
     } while(true);

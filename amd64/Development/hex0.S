@@ -44,9 +44,9 @@ _start:
         sub  rsp, 32                       # allocate shadow stack space for UEFI function
         call r14                           # system->boot->open_protocol(image_handle, &guid, &image, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
         mov  rax, [rsp+64]                 # get image
+        mov  rcx, rax                      # save image
 
         # Command line args
-        mov  rcx, rax                      # save image
         mov  rbx, [rax+56]                 # options = image->load_options
 
 loop_options1:                             # Skip application name
@@ -68,7 +68,7 @@ loop_options2:                             # Skip argv[1]
         add  rbx, 2                        # ++options
         mov  r13, rbx                      # save output file
 
-        # Get root device
+        # Get root file system
         push rax                           # allocate stack for rootfs
         mov  r8, rsp                       # arg3 = &rootfs
         mov  rdx, [rip+SIMPLE_FS_PROTOCOL+8] # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (last 64 bits)

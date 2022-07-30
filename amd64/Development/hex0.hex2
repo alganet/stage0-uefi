@@ -42,9 +42,9 @@
     4883EC 20       ; SUBI8_RSP !32                                     # allocate shadow stack space for UEFI function
     41FFD6          ; CALL_R14                                          # system->boot->open_protocol(image_handle, &guid, &image, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
     488B4424 40     ; LOAD64_into_RAX_from_Address_RSP_Immediate8 !64   # get_image
+    4889C1          ; COPY_RCX_to_RAX                                   # save image
 
     # Command line args
-    4889C1          ; COPY_RCX_to_RAX                                   # save image
     488B58 38       ; LOAD64_into_RBX_from_Address_RAX_Immediate8 !56   # options = image->load_options
 
 :loop_options1                                                          # Skip application name
@@ -66,7 +66,7 @@
     4883C3 02       ; ADDI8_RBX !2                                      # ++options
     4989DD          ; COPY_RBX_to_R13                                   # save output file
 
-    # Get root device
+    # Get root file system
     50              ; PUSH_RAX                                          # allocate stack for rootfs
     4989E0          ; COPY_RSP_to_R8                                    # arg3 = &rootfs
     488B15 %SIMPLE_FS_PROTOCOL_8 ; LOADI64_rel_RDX %SIMPLE_FS_PROTOCOL_8 # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (last 64 bits)

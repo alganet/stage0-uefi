@@ -33,11 +33,11 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
     *options = 0;
     out = ++options;
 
-    /* Get root device */
+    /* Get root file system */
     efi_handle_t root_device = image->device;
     system->boot->open_protocol(root_device, &guid2, (void **) &rootfs, image_handle, 0,
                                 EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL);
-    /* Get root fs */
+    /* Get root directory */
     rootfs->open_volume(rootfs, &rootdir);
 
     /* Open file for writing */
