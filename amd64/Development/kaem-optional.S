@@ -3,19 +3,6 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-# Usage: hex0 file.hex0 file
-# Does not validate the arguments or check for success
-
-# Calling convention:
-# First four arguments are passed via registers rcx, rdx, r8, r9 (if they fit in 64-bits)
-# but we need to leave stack space
-# rax, rcx, rdx, r8, r9, r10 and r11 are volatile and can be changed by called function
-
-# Registers:
-#   r12 script/fin: first output file name, later reused for script file handle
-#   r13 rootdir
-#   r14 system->boot from UEFI
-
 .global _start
 .text
 
@@ -49,9 +36,9 @@ _start:
         sub  rsp, 32                      # allocate shadow stack space for UEFI function
         call [r14+280]                    # system->boot->open_protocol(image_handle, &guid, &image, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
         mov  rax, [rsp+64]                # get image
+        mov [rip+image], rax              # save image
 
         # Command line args
-        mov [rip+image], rax              # save image
         mov rcx, rax                      # copy image to rcx
         mov rbx, [rax+56]                 # options = image->load_options
 
@@ -86,7 +73,7 @@ root_fs:
         mov r9, [rip+image_handle]        # arg4 = image_handle
         mov rcx, [rcx+24]                 # arg1 = root_device = image->device
         sub rsp, 32                       # allocate shadow stack space for UEFI function
-        call [r14+280]                    # system->boot->open_protocol(root_device, &guid, &rootfs, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL);
+        call [r14+280]                    # system->boot->open_protocol(root_device, &guid, &rootfs, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
         mov rcx, [rsp+64]                 # get rootfs
 
         # Get root directory
@@ -99,7 +86,7 @@ root_fs:
         pop rax                           # deallocate stack
         pop r13                           # save &rootdir
 
-        ## Open file for reading
+        # Open file for reading
         push rdx                          # allocate stack for fin
         mov rdx, rsp                      # arg2 = &fin
         push 1                            # arg5 = EFI_FILE_READ_ONLY
@@ -170,7 +157,7 @@ read_command_done:
 
         shr rsi                           # divide i by 2 to go from char to wchar length
 
-        lea rdx, [rip+prefix]             # get prefix "+>"
+        lea rdx, [rip+prefix]             # get prefix " +> "
         call File_Print                   # print it
         mov rdx, rbx                      # get command
         call File_Print                   # print it
@@ -192,9 +179,9 @@ read_command_done:
         sub rsp, 32                       # allocate shadow stack space for UEFI function
         call [rcx+8]                      # rootdir->open()
         test eax, eax                     # if status != EFI_SUCCESS
-        jne terminate                     # then exit
-        add rsp, 32                       # deallocate stack
-        mov rdi, [rsp+8]                  # get fcmd
+        jne print_error                   # then exit
+        add rsp, 40                       # deallocate stack
+        pop rdi                           # get fcmd
 
         # Restore command line arguments
         mov WORD PTR [r15], 0x20          # restore command line options by readding ' '
@@ -209,7 +196,7 @@ read_command_done:
         push rax                          # allocate shadow stack space for UEFI function
         push rax                          # allocate shadow stack space for UEFI function
         push rax                          # allocate shadow stack space for UEFI function
-        call [r14+64]                     # system->boot->allocate_pool(EFI_LOADER_DATA, 4096, &commmand)
+        call [r14+64]                     # system->boot->allocate_pool(EFI_LOADER_DATA, 4096, &file_info)
         pop rax                           # deallocate stack
         pop rax                           # deallocate stack
         pop rax                           # deallocate stack
@@ -255,7 +242,7 @@ read_command_done:
         pop r15                           # get executable
         pop rdx                           # restore file_size
 
-        # Load executable to memory
+        # Load executable into memory
         push rdx                          # save file_size onto stack
         mov r8, r15                       # arg3 = executable
         mov rdx, rsp                      # arg2 = &file_size
@@ -271,7 +258,7 @@ read_command_done:
         # Close fcmd
         push rax                          # allocate stack
         mov rcx, rdi                      # arg1 = fcmd
-        call [rcx+16]                     # fin->close()
+        call [rcx+16]                     # fcmd->close(fcmd)
         pop rax                           # restore stack
 
         pop rdi                           # restore file_size
@@ -353,9 +340,9 @@ read_command_done:
         mov r9, rdi                       # arg4 = child_ih
         mov rcx, rdi                      # arg1 = child_ih
         sub  rsp, 32                      # allocate shadow stack space for UEFI function
-        call [r14+280]                    # system->boot->open_protocol(child_ih, &guid, &image, child_ih, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
+        call [r14+280]                    # system->boot->open_protocol(child_ih, &guid, &child_image, child_ih, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
         add rsp, 64                       # deallocate stack
-        pop rax                           # get image
+        pop rax                           # get child_image
 
         mov [rax+56], rbx                 # child_image->load_options = command
         mov [rax+48], rsi                 # set child_image->load_options_size
@@ -364,8 +351,8 @@ read_command_done:
         mov [rax+24], rcx                 # child_image->device = image->device
 
         # Run command
-        xor r8, r8                        # arg3 = 0
-        xor rdx, rdx                      # arg2 = 0
+        xor r8, r8                        # arg3 = 0 (ExitData)
+        xor edx, edx                      # arg2 = 0 (ExitData size)
         mov rcx, rdi                      # arg1 = child_ih
         push rax                          # allocate shadow stack space for UEFI function
         push rax                          # allocate shadow stack space for UEFI function
@@ -376,8 +363,8 @@ read_command_done:
         pop  rcx                          # deallocate stack
 
         test eax, eax                     # check if return code is 0
-        jne print_error
-        jmp next_command
+        jne print_error                   # print error and exit
+        jmp next_command                  # process another line from kaem script
 
 print_error:
         push rax                          # save exit code
@@ -389,14 +376,14 @@ print_error:
 terminate:
         # Free pool
         mov rcx, rbx                      # arg1 = command
-        mov rbx, rax                      # save exit code
+        push rax                          # save exit code
         push rax                          # allocate shadow stack space for UEFI function
         call [r14+72]                     # system->boot->free_pool(commmand)
 
-        push rax                          # allocate stack
         mov rcx, r12                      # arg1 = fin
-        call [rcx+16]                     # fin->close()
-        mov rax, rbx                      # restore exit code
+        call [rcx+16]                     # fin->close(fin)
+        pop rax                           # deallocate stack
+        pop rax                           # restore exit code
 
 # Exit without closing script file
 abort:
@@ -409,7 +396,7 @@ File_Print:
         mov rcx, [rip+system_out]         # get system_out
         push rax                          # allocate shadow stack space for UEFI function
         push rax                          # allocate shadow stack space for UEFI function
-        call [rcx+8]                      # system->out->output_string(system->out, WCHAR*);
+        call [rcx+8]                      # system->out->output_string(system->out, WCHAR*)
         pop rax                           # deallocate stack
         pop rax                           # deallocate stack
         ret
@@ -417,20 +404,20 @@ File_Print:
 # read_byte function
 # reads a single character
 read_byte:
-        mov  rcx, r12                     # arg1 = fin
+        mov rcx, r12                      # arg1 = fin
         push 1                            # size = 1
-        mov  rdx, rsp                     # arg2 = &size
+        mov rdx, rsp                      # arg2 = &size
         push rsi                          # allocate stack
-        mov  r8, rsp                      # arg3 = &c
+        mov r8, rsp                       # arg3 = &c
         push rax                          # allocate shadow stack space for UEFI function
         push rax                          # allocate shadow stack space for UEFI function
         push rax                          # allocate shadow stack space for UEFI function
         call [rcx+32]                     # fin->read()
-        pop  rax                          # deallocate stack
-        pop  rax                          # deallocate stack
-        pop  rax                          # deallocate stack
-        pop  rax                          # save c to rax
-        pop  rcx                          # save size to rcx
+        pop rax                           # deallocate stack
+        pop rax                           # deallocate stack
+        pop rax                           # deallocate stack
+        pop rax                           # save c to rax
+        pop rcx                           # save size to rcx
 
         # If the file ended (0 bytes read) terminate
         test ecx, ecx                     # if size == 0
@@ -466,12 +453,10 @@ default_file:
 prefix:
 .byte 0x20, 0, 0x2B, 0, 0x3E, 0, 0x20, 0, 0, 0               # L" +> "
 
-suffix:
-.byte 0x0a, 0, 0x0d, 0, 0, 0                                 # L"\n\r"
-
 subprocess_error:
 .byte 0x53, 0, 0x75, 0, 0x62, 0, 0x70, 0, 0x72, 0, 0x6F, 0, 0x63, 0, 0x65, 0
 .byte 0x73, 0, 0x73, 0, 0x20, 0, 0x65, 0, 0x72, 0, 0x72, 0, 0x6F, 0, 0x72, 0
+suffix:
 .byte 0x0A, 0, 0x0D, 0, 0, 0                                 # L"Subprocess error\n\r"
 
 image_handle:
@@ -482,4 +467,3 @@ image:
 
 system_out:
 .long 0, 0
-
