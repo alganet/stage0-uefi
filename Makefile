@@ -2,7 +2,6 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-targets = kaem-minimal hex0
 ESP_SIZE_MIB = 50
 QEMU = qemu-system-x86_64
 QEMU_KVM = -enable-kvm
@@ -47,7 +46,11 @@ rootfs:
 
 	mkdir -p $(rootfs_dir)/bootstrap-seeds/UEFI/
 	rsync -av bootstrap-seeds/UEFI/ $(rootfs_dir)/bootstrap-seeds/UEFI/
+ifndef MINIMAL
 	mv $(rootfs_dir)/bootstrap-seeds/UEFI/amd64/kaem-optional-seed.efi $(boot_dir)/BOOTX64.efi
+else
+	rm $(rootfs_dir)/bootstrap-seeds/UEFI/amd64/kaem-optional-seed.efi
+endif
 
 clean:
 	rm -rf $(build_dir)
