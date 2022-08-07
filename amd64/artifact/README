@@ -1,9 +1,4 @@
 # SPDX-FileCopyrightText: 2022 Andrius Štikonas <andrius@stikonas.eu>
 # SPDX-License-Identifier: MIT
 
-*~
-build/
-*.d
-*.lib
-*.efi
-*.o
+This is a placeholder directory that will contain AMD64 bootstrap artifacts.

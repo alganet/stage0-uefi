@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: 2022 Andrius Štikonas <andrius@stikonas.eu>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+###############################################
+# Phase-0 Build hex0 from bootstrapped binary #
+###############################################
+bootstrap-seeds\UEFI\amd64\hex0-seed.efi amd64\hex0.hex0 amd64\artifact\hex0.efi
+# hex0 should have the exact same checksum as hex0-seed as they are both supposed
+# to be built from hex0_amd64.hex0 and by definition must be identical
+
+#########################################
+# Phase-0b Build minimal kaem from hex0 #
+#########################################
+amd64\artifact\hex0.efi amd64\kaem-minimal.hex0 amd64\artifact\kaem-0.efi
+# for checksum validation reasons

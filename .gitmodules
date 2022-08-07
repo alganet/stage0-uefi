@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2022 Andrius Štikonas <andrius@stikonas.eu>
+# SPDX-License-Identifier: MIT
+
 [submodule "bootstrap-seeds"]
 	path = bootstrap-seeds
 	url = https://github.com/oriansj/bootstrap-seeds/

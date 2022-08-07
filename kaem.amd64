@@ -1,0 +1,10 @@
+# SPDX-FileCopyrightText: 2022 Andrius Štikonas <andrius@stikonas.eu>
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+##################################################
+# Phase 0-11 Build hex0 from bootstrapped binary #
+##################################################
+
+EFI\BOOT\BOOTX64.efi amd64\mescc-tools-seed-kaem.kaem
+amd64\artifact\kaem-0.efi amd64\mescc-tools-mini-kaem.kaem

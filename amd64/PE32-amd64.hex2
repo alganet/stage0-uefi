@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2022 Jeremiah Orians
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 # DOS MZ header
 4D 5A                           # Signature
 00 00                           # Number of bytes in the last page.

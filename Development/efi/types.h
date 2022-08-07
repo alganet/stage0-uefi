@@ -1,3 +1,4 @@
+/* SPDX-FileCopyrightText: Mike Krinkin */
 /* SPDX-License-Identifier: Unlicense */
 
 #ifndef __EFI_TYPES_H__

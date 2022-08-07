@@ -1,3 +1,4 @@
+/* SPDX-FileCopyrightText: Mike Krinkin */
 /* SPDX-License-Identifier: Unlicense */
 
 #ifndef __EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_H__
