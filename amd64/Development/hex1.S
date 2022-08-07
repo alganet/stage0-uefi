@@ -66,7 +66,7 @@ loop_options2:                             # Skip argv[1]
         mov rcx, [rcx+24]                  # arg1 = root_device = image->device
         sub rsp, 32                        # allocate shadow stack space for UEFI function
         call r14                           # system->boot->open_protocol(root_device, &guid, &rootfs, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
-        mov  rcx, [rsp+64]                 # get rootfs
+        mov rcx, [rsp+64]                  # get rootfs
 
         # Get root directory
         push rdx                           # allocate stack for rootdir
@@ -281,7 +281,7 @@ print:
         add rax, r14
 
         # flip the toggle
-        dec r15                            # rbx = -1
+        not r15                            # rbx = -1
 
         mov rdx,  1                        # set the size of chars we want
         call print_chars
@@ -314,10 +314,10 @@ Read_byte:
 Read_byte_1:
         ret                                # return
 
-# Writes byte stored in al
+# Writes bytes stored in rax
 print_chars:
         mov rcx, rbx                       # arg1 = fout
-        push rdx                           # size = 1
+        push rdx                           # set size
         mov rdx, rsp                       # arg2 = &size
         push rax                           # allocate stack
         mov r8, rsp                        # arg3 = &output
