@@ -64,7 +64,7 @@ loop_options2:                             # Skip argv[1]
         cmp  al, 0x20                      # if *options != ' '
         jne  loop_options2                 # then jump
 
-        mov  byte ptr [rbx], 0             # *options = 0;
+        mov  byte ptr [rbx], 0             # *options = 0
         add  rbx, 2                        # ++options
         mov  r13, rbx                      # save output file
 
@@ -81,7 +81,7 @@ loop_options2:                             # Skip argv[1]
         mov  r9, r15                       # arg4 = image_handle
         mov  rcx, [rcx+24]                 # arg1 = root_device = image->device
         sub  rsp, 32                       # allocate shadow stack space for UEFI function
-        call r14                           # system->boot->open_protocol(root_device, &guid, &rootfs, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL);
+        call r14                           # system->boot->open_protocol(root_device, &guid, &rootfs, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
         mov  rcx, [rsp+64]                 # get rootfs
 
         # Get root directory

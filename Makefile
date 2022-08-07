@@ -42,7 +42,7 @@ $(build_dir)/esp.img: rootfs
 rootfs:
 	rm -rf $(rootfs_dir)
 	mkdir -p $(boot_dir)
-	rsync -av . $(rootfs_dir) --exclude $(build_dir) --exclude ".*" --exclude "Development/" --exclude "*/Development/" --exclude "bootstrap-seeds/"
+	rsync -av . $(rootfs_dir) --exclude $(build_dir) --exclude ".*" --exclude "bootstrap-seeds/"
 
 	mkdir -p $(rootfs_dir)/bootstrap-seeds/UEFI/
 	rsync -av bootstrap-seeds/UEFI/ $(rootfs_dir)/bootstrap-seeds/UEFI/
