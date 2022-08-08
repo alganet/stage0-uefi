@@ -11,7 +11,20 @@ _start:
         mov rbp, rsp                       # save stack pointer
         mov r15, rcx                       # save image_handle
         mov r14, [rdx+96]                  # system->boot
-        mov r14, [r14+280]                 # system->boot->open_protocol
+        mov [SystemBoot], r14              # save system->boot
+
+        # Allocate pool for single-character label table
+        push rdx                           # allocate stack for table
+        mov r8, rsp                        # arg3 = &table
+        xor edx, edx                       # zero rdx
+        mov dh, 0x8                        # arg2 = 256 * 8 = 2048 = 0x800
+        push 2
+        pop rcx                            # arg1 = EFI_LOADER_DATA
+        sub rsp, 24                        # allocate shadow stack space for UEFI
+        call [r14+64]                      # system->boot->allocate_pool(EFI_LOADER_DATA, 2048, &table)
+        add rsp, 24                        # deallocate stack
+        pop rax                            # get table
+        mov [table], rax                   # save table
 
         # Open Loaded Image protocol
         push rax                           # allocate stack for image
@@ -23,10 +36,10 @@ _start:
         mov rdx, rsp                       # arg2 = &guid
         push 1                             # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
         push 0                             # arg5 = NULL
-        mov r9, rcx                        # arg4 = image_handle
-                                           # arg1 = ImageHandle (already set)
+        mov r9, r15                        # arg4 = image_handle
+        mov rcx, r15                       # arg1 = image_handle
         sub rsp, 32                        # allocate shadow stack space for UEFI function
-        call r14                           # system->boot->open_protocol(image_handle, &guid, &image, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
+        call [r14+280]                     # system->boot->open_protocol(image_handle, &guid, &image, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
         mov rax, [rsp+64]                  # get image
         mov rcx, rax                       # save image
 
@@ -65,7 +78,7 @@ loop_options2:                             # Skip argv[1]
         mov r9, r15                        # arg4 = image_handle
         mov rcx, [rcx+24]                  # arg1 = root_device = image->device
         sub rsp, 32                        # allocate shadow stack space for UEFI function
-        call r14                           # system->boot->open_protocol(root_device, &guid, &rootfs, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
+        call [r14+280]                     # system->boot->open_protocol(root_device, &guid, &rootfs, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
         mov rcx, [rsp+64]                  # get rootfs
 
         # Get root directory
@@ -281,7 +294,7 @@ print:
         add rax, r14
 
         # flip the toggle
-        not r15                            # rbx = -1
+        not r15                            # r15 = -1
 
         mov rdx,  1                        # set the size of chars we want
         call print_chars
@@ -332,7 +345,8 @@ print_chars:
 Get_table_target:
         call Read_byte                     # Get single char label
         shl rax, 3                         # Each label in table takes 8 bytes to store
-        add rax, table                     # Calculate offset
+        mov rcx, [rip+table]
+        add rax, rcx                       # Calculate offset
         ret
 
 StoreLabel:
@@ -350,6 +364,12 @@ StorePointer:
         ret
 
 Done:
+        # Free pool
+        mov rcx, [table]                   # arg1 = table
+        push rax                           # allocate shadow stack space for UEFI function
+        mov r14, [SystemBoot]              # get system->boot
+        call [r14+72]                      # system->boot->free_pool(commmand)
+
         push rbx                           # allocate stack
         mov rcx, rdi                       # arg1 = fin
         call [rcx+16]                      # fin->close()
@@ -375,4 +395,7 @@ SIMPLE_FS_PROTOCOL:
 .byte  0x8e, 0x39, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b
 
 table:
+.long 0, 0
+
+SystemBoot:
 .long 0, 0
