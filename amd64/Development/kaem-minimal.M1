@@ -56,8 +56,8 @@ DEFINE LOAD64_into_RDX_rel32 488B15
 DEFINE LOAD64_into_R9_rel32 4C8B0D
 DEFINE LOAD8_AL_from_Address_RBX 8A03
 DEFINE LOADI8_DH B6
-DEFINE LOADI64_rel_RCX 488B0D
-DEFINE LOADI64_rel_RDX 488B15
+DEFINE LOAD64_rel_RCX 488B0D
+DEFINE LOAD64_rel_RDX 488B15
 DEFINE POP_RAX 58
 DEFINE POP_RBX 5B
 DEFINE POP_RCX 59
@@ -125,9 +125,9 @@ DEFINE XOR_R15_R15 4D31FF
     # Open Loaded Image protocol
     PUSH_RAX                                          # allocate stack for image
     COPY_RSP_to_R8                                    # arg3 = &image
-    LOADI64_rel_RDX %LOADED_IMAGE_PROTOCOL_8          # EFI_LOADED_IMAGE_PROTOCOL_GUID (last 64 bits)
+    LOAD64_rel_RDX %LOADED_IMAGE_PROTOCOL_8           # EFI_LOADED_IMAGE_PROTOCOL_GUID (last 64 bits)
     PUSH_RDX                                          # push last 64 bits onto stack
-    LOADI64_rel_RDX %LOADED_IMAGE_PROTOCOL            # EFI_LOADED_IMAGE_PROTOCOL_GUID (first 64 bits)
+    LOAD64_rel_RDX %LOADED_IMAGE_PROTOCOL             # EFI_LOADED_IMAGE_PROTOCOL_GUID (first 64 bits)
     PUSH_RDX                                          # push first 64 bits onto stack
     COPY_RSP_to_RDX                                   # arg2 = &guid
     PUSH !1                                           # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
@@ -164,9 +164,9 @@ DEFINE XOR_R15_R15 4D31FF
     # Get root file system
     PUSH_RAX                                          # allocate stack for rootfs
     COPY_RSP_to_R8                                    # arg3 = &rootfs
-    LOADI64_rel_RDX %SIMPLE_FS_PROTOCOL_8             # SIMPLE_FS_PROTOCOL (last 64 bits)
+    LOAD64_rel_RDX %SIMPLE_FS_PROTOCOL_8              # SIMPLE_FS_PROTOCOL (last 64 bits)
     PUSH_RDX                                          # push last 64 bits onto stack
-    LOADI64_rel_RDX %SIMPLE_FS_PROTOCOL               # SIMPLE_FS_PROTOCOL (first 64 bits)
+    LOAD64_rel_RDX %SIMPLE_FS_PROTOCOL                # SIMPLE_FS_PROTOCOL (first 64 bits)
     PUSH_RDX                                          # push first 64 bits onto stack
     COPY_RSP_to_RDX                                   # arg2 = &guid
     PUSH !1                                           # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
@@ -308,9 +308,9 @@ DEFINE XOR_R15_R15 4D31FF
     PUSH_RAX                                          # allocate stack for file_size
     COPY_RSP_to_R8                                    # arg3 = &file_size
     STOREI32_into_Address_R8 %0x1000                  # file_size = 0x1000
-    LOADI64_rel_RDX %SIMPLE_FS_PROTOCOL_8             # EFI_FILE_INFO_PROTOCOL (last 64 bits)
+    LOAD64_rel_RDX %SIMPLE_FS_PROTOCOL_8              # EFI_FILE_INFO_PROTOCOL (last 64 bits)
     PUSH_RDX                                          # push last 64 bits onto stack
-    LOADI64_rel_RDX %FILE_INFO_PROTOCOL               # EFI_FILE_INFO_PROTOCOL (first 64 bits)
+    LOAD64_rel_RDX %FILE_INFO_PROTOCOL                # EFI_FILE_INFO_PROTOCOL (first 64 bits)
     PUSH_RDX                                          # push first 64 bits onto stack
     COPY_RSP_to_RDX                                   # arg2 = &guid
     COPY_RDI_to_RCX                                   # arg1 = fcmd
@@ -431,9 +431,9 @@ DEFINE XOR_R15_R15 4D31FF
     # Open Child Image
     PUSH_RAX                                          # allocate stack for child_image
     COPY_RSP_to_R8                                    # arg3 = &child_image
-    LOADI64_rel_RDX %LOADED_IMAGE_PROTOCOL_8          # EFI_LOADED_IMAGE_PROTOCOL_GUID (last 64 bits)
+    LOAD64_rel_RDX %LOADED_IMAGE_PROTOCOL_8           # EFI_LOADED_IMAGE_PROTOCOL_GUID (last 64 bits)
     PUSH_RDX                                          # push last 64 bits onto stack
-    LOADI64_rel_RDX %LOADED_IMAGE_PROTOCOL            # EFI_LOADED_IMAGE_PROTOCOL_GUID (first 64 bits)
+    LOAD64_rel_RDX %LOADED_IMAGE_PROTOCOL             # EFI_LOADED_IMAGE_PROTOCOL_GUID (first 64 bits)
     PUSH_RDX                                          # push first 64 bits onto stack
     COPY_RSP_to_RDX                                   # arg2 = &guid
     PUSH !1                                           # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
@@ -447,7 +447,7 @@ DEFINE XOR_R15_R15 4D31FF
 
     STORE64_from_RBX_into_Address_RAX_Immediate8 !56  # child_image->load_options = command
     STORE64_from_RSI_into_Address_RAX_Immediate8 !48  # set child_image->load_options_size
-    LOADI64_rel_RCX %image                            # get image
+    LOAD64_rel_RCX %image                             # get image
     LOAD64_into_RCX_from_Address_RCX_Immediate8 !24   # image->device
     STORE64_from_RCX_into_Address_RCX_Immediate8 !24  # child_image->device = image->device
 
@@ -494,7 +494,7 @@ DEFINE XOR_R15_R15 4D31FF
 # File_Print function
 # Receives WCHAR* in RDX
 :File_Print
-    LOADI64_rel_RCX %system_out                       # get system_out
+    LOAD64_rel_RCX %system_out                        # get system_out
     PUSH_RAX                                          # allocate shadow stack space for UEFI function
     PUSH_RAX                                          # allocate shadow stack space for UEFI function
     CALL_RCX_Immediate8 !8                            # system->out->output_string(system->out, WCHAR*)

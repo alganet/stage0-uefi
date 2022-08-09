@@ -11,7 +11,7 @@ _start:
         mov rbp, rsp                       # save stack pointer
         mov r15, rcx                       # save image_handle
         mov r14, [rdx+96]                  # system->boot
-        mov [SystemBoot], r14              # save system->boot
+        mov [rip+SystemBoot], r14          # save system->boot
 
         # Allocate pool for single-character label table
         push rdx                           # allocate stack for table
@@ -24,7 +24,7 @@ _start:
         call [r14+64]                      # system->boot->allocate_pool(EFI_LOADER_DATA, 2048, &table)
         add rsp, 24                        # deallocate stack
         pop rax                            # get table
-        mov [table], rax                   # save table
+        mov [rip+table], rax               # save table
 
         # Open Loaded Image protocol
         push rax                           # allocate stack for image
@@ -345,7 +345,7 @@ print_chars:
 Get_table_target:
         call Read_byte                     # Get single char label
         shl rax, 3                         # Each label in table takes 8 bytes to store
-        mov rcx, [rip+table]
+        mov rcx, [rip+table]               # Get table
         add rax, rcx                       # Calculate offset
         ret
 
@@ -365,12 +365,11 @@ StorePointer:
 
 Done:
         # Free pool
-        mov rcx, [table]                   # arg1 = table
+        mov rcx, [rip+table]               # arg1 = table
         push rax                           # allocate shadow stack space for UEFI function
-        mov r14, [SystemBoot]              # get system->boot
-        call [r14+72]                      # system->boot->free_pool(commmand)
+        mov r14, [rip+SystemBoot]          # get system->boot
+        call [r14+72]                      # system->boot->free_pool(table)
 
-        push rbx                           # allocate stack
         mov rcx, rdi                       # arg1 = fin
         call [rcx+16]                      # fin->close()
         mov rcx, rbx                       # arg1 = fout

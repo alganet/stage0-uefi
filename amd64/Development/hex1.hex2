@@ -7,24 +7,37 @@
 # efi_main(void *image_handle, struct efi_system_table *system)
 :_start
     4889E5          ; COPY_RSP_to_RBP                                   # save stack pointer
-    4989CF          ; COPY_R15_to_RCX                                   # save image_handle
+    4989CF          ; COPY_RCX_to_R15                                   # save image_handle
     4C8B72 60       ; LOAD64_into_R14_from_Address_RDX_Immediate8 !96   # system->boot
-    4D8BB6 18010000 ; LOAD64_into_R14_from_Address_R14_Immediate32 %280 # system->boot->open_protocol
+    4C8935 %SystemBoot ; STORE64_rel_R14 %SystemBoot                    # save system->boot
+
+    # Allocate pool for single-character label table
+    52              ; PUSH_RDX                                          # allocate stack for table
+    4989E0          ; COPY_RSP_to_R8                                    # arg3 = &table
+    31D2            ; XOR_EDX_EDX                                       # zero rdx
+    B6 08           ; LOADI8_DH !0x8                                    # arg2 = 256 * 8 = 2048 = 0x800
+    6A 02           ; PUSH !2
+    59              ; POP_RCX                                           # arg1 = EFI_LOADER_DATA
+    4883EC 18       ; SUBI8_RSP !24                                     # allocate shadow stack space for UEFI
+    41FF56 40       ; CALL_R14_Immediate8 !64                           # system->boot->allocate_pool(EFI_LOADER_DATA, 2048, &table)
+    4883C4 18       ; ADDI8_RSP !24                                     # deallocate stack
+    58              ; POP_RAX                                           # get table
+    488905 %table   ; STORE64_rel_RAX %table                            # save table
 
     # Open Loaded Image protocol
     50              ; PUSH_RAX                                          # allocate stack for image
     4989E0          ; COPY_RSP_to_R8                                    # arg3 = &image
-    488B15 %LOADED_IMAGE_PROTOCOL_8 ; LOADI64_rel_RDX !LOADED_IMAGE_PROTOCOL_8 # EFI_LOADED_IMAGE_PROTOCOL_GUID (last 64 bits)
+    488B15 %LOADED_IMAGE_PROTOCOL_8 ; LOAD64_rel_RDX !LOADED_IMAGE_PROTOCOL_8 # EFI_LOADED_IMAGE_PROTOCOL_GUID (last 64 bits)
     52              ; PUSH_RDX                                          # push last 64 bits onto stack
-    488B15 %LOADED_IMAGE_PROTOCOL ; LOADI64_rel_RDX !LOADED_IMAGE_PROTOCOL # EFI_LOADED_IMAGE_PROTOCOL_GUID (first 64 bits)
+    488B15 %LOADED_IMAGE_PROTOCOL ; LOAD64_rel_RDX !LOADED_IMAGE_PROTOCOL # EFI_LOADED_IMAGE_PROTOCOL_GUID (first 64 bits)
     52              ; PUSH_RDX                                          # push first 64 bits onto stack
     4889E2          ; COPY_RSP_to_RDX                                   # arg2 = &guid
     6A 01           ; PUSH !1                                           # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
     6A 00           ; PUSH !0                                           # arg5 = NULL
-    4989C9          ; COPY_RCX_to_R9                                    # arg4 = image_handle
-                                                                        # arg1 = ImageHandle (already set)
+    4D89F9          ; COPY_R15_to_R9                                    # arg4 = image_handle
+    4C89F9          ; COPY_R15_to_RCX                                   # arg1 = image_handle
     4883EC 20       ; SUBI8_RSP !32                                     # allocate shadow stack space for UEFI function
-    41FFD6          ; CALL_R14                                          # system->boot->open_protocol(image_handle, &guid, &image, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
+    41FF96 18010000 ; CALL_R14_Immediate32 %280                         # system->boot->open_protocol(image_handle, &guid, &image, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
     488B4424 40     ; LOAD64_into_RAX_from_Address_RSP_Immediate8 !64   # get_image
     4889C1          ; COPY_RCX_to_RAX                                   # save image
 
@@ -53,9 +66,9 @@
     # Get root file system
     50              ; PUSH_RAX                                          # allocate stack for rootfs
     4989E0          ; COPY_RSP_to_R8                                    # arg3 = &rootfs
-    488B15 %SIMPLE_FS_PROTOCOL_8 ; LOADI64_rel_RDX %SIMPLE_FS_PROTOCOL_8 # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (last 64 bits)
+    488B15 %SIMPLE_FS_PROTOCOL_8 ; LOAD64_rel_RDX %SIMPLE_FS_PROTOCOL_8 # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (last 64 bits)
     52              ; PUSH_RDX                                          # push last 64 bits onto stack
-    488B15 %SIMPLE_FS_PROTOCOL ; LOADI64_rel_RDX %SIMPLE_FS_PROTOCOL    # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (first 64 bits)
+    488B15 %SIMPLE_FS_PROTOCOL ; LOAD64_rel_RDX %SIMPLE_FS_PROTOCOL     # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (first 64 bits)
     52              ; PUSH_RDX                                          # push first 64 bits onto stack
     4889E2          ; COPY_RSP_to_RDX                                   # arg2 = &guid
     6A 01           ; PUSH !1                                           # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
@@ -63,7 +76,7 @@
     4D89F9          ; COPY_R15_to_R9                                    # arg4 = image_handle
     488B49 18       ; LOAD64_into_RCX_from_Address_RCX_Immediate8 !24   # arg1 = root_device = image->device
     4883EC 20       ; SUBI8_RSP !32                                     # allocate shadow stack space for UEFI function
-    41FFD6          ; CALL_R14                                          # system->boot->open_protocol(root_device, &guid, &rootfs, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
+    41FF96 18010000 ; CALL_R14_Immediate32 %280                         # system->boot->open_protocol(root_device, &guid, &rootfs, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
     488B4C24 40     ; LOAD64_into_RCX_from_Address_RSP_Immediate8 !64   # get rootfs
 
     # Get root directory
@@ -278,9 +291,8 @@
     4C01F0                ; ADD_R14_to_RAX
 
     # flip the toggle
-    49F7D7                ; NOT_R15
+    49F7D7                ; NOT_R15                     # R15 = -1
 
-    # Print our first Hex
     48C7C2 01000000       ; LOADI32_RDX %1              # set the size of chars we want
     E8 %print_chars       ; CALLI32 %print_chars
 
@@ -330,7 +342,8 @@
 :Get_table_target
     E8 %Read_byte         ; CALLI32 %Read_byte          # Get single char label
     48C1E0 03             ; SHL8_RAX !3                 # Each label in table takes 8 bytes to store
-    4805 &table           ; ADDI32_to_RAX &table        # Calculate offset
+    488B0D %table         ; LOAD64_rel_RCX %table       # Get table
+    4801C8                ; ADD_RCX_to_RAX              # Calculate offset
     C3                    ; RET
 
 :StoreLabel
@@ -348,7 +361,12 @@
     C3                    ; RET
 
 :Done
-    53                    ; PUSH_RBX                    # allocate stack
+    # Free pool
+    488B0D %table         ; LOAD64_rel_RCX %table       # arg1 = table
+    50                    ; PUSH_RAX                    # allocate shadow stack space for UEFI function
+    4C8B35 %SystemBoot    ; LOAD64_rel_R14 %SystemBoot  # get system->boot
+    41FF56 48             ; CALL_R14_Immediate8 !72     # system->boot->free_pool(table)
+
     4889F9                ; COPY_RDI_to_RCX             # arg1 = fin
     FF51 10               ; CALL_RCX_Immediate8 !16     # fin->close()
     4889D9                ; COPY_RBX_to_RCX             # arg1 = fout
@@ -374,6 +392,9 @@
     8E 39 00 A0 C9 69 72 3B ; !0x8e !0x39 !0 !0xa0 !0xc9 !0x69 !0x72 !0x3b
 
 :table
+    00000000 00000000
+
+:SystemBoot
     00000000 00000000
 
 :PE32_end

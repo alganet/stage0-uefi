@@ -3,14 +3,15 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-DEFINE ADDI32_to_RAX 4805
 DEFINE ADDI32_to_R13 4981C5
 DEFINE ADDI8_RBX 4883C3
+DEFINE ADD_RCX_to_RAX 4801C8
 DEFINE ADD_R14_to_RAX 4C01F0
 DEFINE ADDI8_RSP 4883C4
 DEFINE CALLI32 E8
-DEFINE CALL_R14 41FFD6
 DEFINE CALL_RCX_Immediate8 FF51
+DEFINE CALL_R14_Immediate8 41FF56
+DEFINE CALL_R14_Immediate32 41FF96
 DEFINE CMPI8_AL 3C
 DEFINE CMPI32_RAX 483D
 DEFINE CMPI32_R15 4981FF
@@ -18,17 +19,17 @@ DEFINE COPY_RAX_to_R14 4989C6
 DEFINE COPY_RBX_to_R12 4989DC
 DEFINE COPY_RBX_to_R13 4989DD
 DEFINE COPY_RCX_to_RAX 4889C1
+DEFINE COPY_RCX_to_R15 4989CF
 DEFINE COPY_RSP_to_RBP 4889E5
 DEFINE COPY_RSP_to_RDX 4889E2
 DEFINE COPY_RSP_to_R8 4989E0
 DEFINE COPY_RBP_to_RSP 4889EC
-DEFINE COPY_RCX_to_R9 4989C9
 DEFINE COPY_RDI_to_RCX 4889F9
 DEFINE COPY_R12_to_R8 4D89E0
 DEFINE COPY_RBX_to_RCX 4889D9
 DEFINE COPY_R13_to_R8 4D89E8
 DEFINE COPY_R14_to_RCX 4C89F1
-DEFINE COPY_R15_to_RCX 4989CF
+DEFINE COPY_R15_to_RCX 4C89F9
 DEFINE COPY_R15_to_R9 4D89F9
 DEFINE JE32 0F84
 DEFINE JL32 0F8C
@@ -45,14 +46,18 @@ DEFINE LOAD64_into_RBX_from_Address_RSP_Immediate8 488B5C24
 DEFINE LOAD64_into_R14_from_Address_RDX_Immediate8 4C8B72
 DEFINE LOAD64_into_R14_from_Address_R14_Immediate32 4D8BB6
 DEFINE LOAD8_AL_from_Address_RBX 8A03
+DEFINE LOADI8_DH B6
 DEFINE LOADI32_RAX 48C7C0
 DEFINE LOADI32_RDX 48C7C2
 DEFINE LOADI32_R13 49C7C5
 DEFINE LOADI32_R14 49C7C6
 DEFINE LOADI32_R15 49C7C7
-DEFINE LOADI64_rel_RDX 488B15
+DEFINE LOAD64_rel_RCX 488B0D
+DEFINE LOAD64_rel_RDX 488B15
+DEFINE LOAD64_rel_R14 4C8B35
 DEFINE NOT_R15 49F7D7
 DEFINE POP_RAX 58
+DEFINE POP_RCX 59
 DEFINE POP_RSI 5E
 DEFINE POP_R9 4159
 DEFINE POP_R14 415E
@@ -66,6 +71,8 @@ DEFINE ROR_R9 49D1C9
 DEFINE SHL8_R14 49C1E6
 DEFINE SHL8_RAX 48C1E0
 DEFINE STORE32_R13_to_Address_in_RAX 4C8928
+DEFINE STORE64_rel_R14 4C8935
+DEFINE STORE64_rel_RAX 488905
 DEFINE STOREI8_into_Address_RBX C603
 DEFINE SUBI8_RSP 4883EC
 DEFINE SUBI8_from_RAX 4883E8
@@ -76,24 +83,37 @@ DEFINE TEST_ESI_ESI 85F6
 # efi_main(void *image_handle, struct efi_system_table *system)
 :_start
     COPY_RSP_to_RBP                                   # save stack pointer
-    COPY_R15_to_RCX                                   # save image_handle
+    COPY_RCX_to_R15                                   # save image_handle
     LOAD64_into_R14_from_Address_RDX_Immediate8 !96   # system->boot
-    LOAD64_into_R14_from_Address_R14_Immediate32 %280 # system->boot->open_protocol
+    STORE64_rel_R14 %SystemBoot                       # save system->boot
+
+    # Allocate pool for single-character label table
+    PUSH_RDX                                          # allocate stack for table
+    COPY_RSP_to_R8                                    # arg3 = &table
+    XOR_EDX_EDX                                       # zero rdx
+    LOADI8_DH !0x8                                    # arg2 = 256 * 8 = 2048 = 0x800
+    PUSH !2
+    POP_RCX                                           # arg1 = EFI_LOADER_DATA
+    SUBI8_RSP !24                                     # allocate shadow stack space for UEFI
+    CALL_R14_Immediate8 !64                           # system->boot->allocate_pool(EFI_LOADER_DATA, 2048, &table)
+    ADDI8_RSP !24                                     # deallocate stack
+    POP_RAX                                           # get table
+    STORE64_rel_RAX %table                            # save table
 
     # Open Loaded Image protocol
     PUSH_RAX                                          # allocate stack for image
     COPY_RSP_to_R8                                    # arg3 = &image
-    LOADI64_rel_RDX %LOADED_IMAGE_PROTOCOL_8          # EFI_LOADED_IMAGE_PROTOCOL_GUID (last 64 bits)
+    LOAD64_rel_RDX %LOADED_IMAGE_PROTOCOL_8           # EFI_LOADED_IMAGE_PROTOCOL_GUID (last 64 bits)
     PUSH_RDX                                          # push last 64 bits onto stack
-    LOADI64_rel_RDX %LOADED_IMAGE_PROTOCOL            # EFI_LOADED_IMAGE_PROTOCOL_GUID (first 64 bits)
+    LOAD64_rel_RDX %LOADED_IMAGE_PROTOCOL             # EFI_LOADED_IMAGE_PROTOCOL_GUID (first 64 bits)
     PUSH_RDX                                          # push first 64 bits onto stack
     COPY_RSP_to_RDX                                   # arg2 = &guid
     PUSH !1                                           # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
     PUSH !0                                           # arg5 = NULL
-    COPY_RCX_to_R9                                    # arg4 = image_handle
-                                                      # arg1 = ImageHandle (already set)
+    COPY_R15_to_R9                                    # arg4 = image_handle
+    COPY_R15_to_RCX                                   # arg1 = image_handle
     SUBI8_RSP !32                                     # allocate shadow stack space for UEFI function
-    CALL_R14                                          # system->boot->open_protocol(image_handle, &guid, &image, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
+    CALL_R14_Immediate32 %280                         # system->boot->open_protocol(image_handle, &guid, &image, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
     LOAD64_into_RAX_from_Address_RSP_Immediate8 !64   # get_image
     COPY_RCX_to_RAX                                   # save image
 
@@ -122,9 +142,9 @@ DEFINE TEST_ESI_ESI 85F6
     # Get root file system
     PUSH_RAX                                          # allocate stack for rootfs
     COPY_RSP_to_R8                                    # arg3 = &rootfs
-    LOADI64_rel_RDX %SIMPLE_FS_PROTOCOL_8             # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (last 64 bits)
+    LOAD64_rel_RDX %SIMPLE_FS_PROTOCOL_8              # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (last 64 bits)
     PUSH_RDX                                          # push last 64 bits onto stack
-    LOADI64_rel_RDX %SIMPLE_FS_PROTOCOL               # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (first 64 bits)
+    LOAD64_rel_RDX %SIMPLE_FS_PROTOCOL                # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (first 64 bits)
     PUSH_RDX                                          # push first 64 bits onto stack
     COPY_RSP_to_RDX                                   # arg2 = &guid
     PUSH !1                                           # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
@@ -132,7 +152,7 @@ DEFINE TEST_ESI_ESI 85F6
     COPY_R15_to_R9                                    # arg4 = image_handle
     LOAD64_into_RCX_from_Address_RCX_Immediate8 !24   # arg1 = root_device = image->device
     SUBI8_RSP !32                                     # allocate shadow stack space for UEFI function
-    CALL_R14                                          # system->boot->open_protocol(root_device, &guid, &rootfs, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
+    CALL_R14_Immediate32 %280                         # system->boot->open_protocol(root_device, &guid, &rootfs, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
     LOAD64_into_RCX_from_Address_RSP_Immediate8 !64   # get rootfs
 
     # Get root directory
@@ -347,9 +367,8 @@ DEFINE TEST_ESI_ESI 85F6
     ADD_R14_to_RAX
 
     # flip the toggle
-    NOT_R15
+    NOT_R15                     # R15 = -1
 
-    # Print our first Hex
     LOADI32_RDX %1              # set the size of chars we want
     CALLI32 %print_chars
 
@@ -399,7 +418,8 @@ DEFINE TEST_ESI_ESI 85F6
 :Get_table_target
     CALLI32 %Read_byte          # Get single char label
     SHL8_RAX !3                 # Each label in table takes 8 bytes to store
-    ADDI32_to_RAX &table        # Calculate offset
+    LOAD64_rel_RCX %table       # Get table
+    ADD_RCX_to_RAX              # Calculate offset
     RET
 
 :StoreLabel
@@ -417,7 +437,12 @@ DEFINE TEST_ESI_ESI 85F6
     RET
 
 :Done
-    PUSH_RBX                    # allocate stack
+    # Free pool
+    LOAD64_rel_RCX %table       # arg1 = table
+    PUSH_RAX                    # allocate shadow stack space for UEFI function
+    LOAD64_rel_R14 %SystemBoot  # get system->boot
+    CALL_R14_Immediate8 !72     # system->boot->free_pool(table)
+
     COPY_RDI_to_RCX             # arg1 = fin
     CALL_RCX_Immediate8 !16     # fin->close()
     COPY_RBX_to_RCX             # arg1 = fout
@@ -443,6 +468,9 @@ DEFINE TEST_ESI_ESI 85F6
     !0x8e !0x39 !0 !0xa0 !0xc9 !0x69 !0x72 !0x3b
 
 :table
+    %0 %0
+
+:SystemBoot
     %0 %0
 
 :PE32_end

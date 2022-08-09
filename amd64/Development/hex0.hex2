@@ -23,16 +23,16 @@
 # efi_main(void *image_handle, struct efi_system_table *system)
 :_start
     4889E5          ; COPY_RSP_to_RBP                                   # save stack pointer
-    4989CF          ; COPY_R15_to_RCX                                   # save image_handle
+    4989CF          ; COPY_RCX_to_R15                                   # save image_handle
     4C8B72 60       ; LOAD64_into_R14_from_Address_RDX_Immediate8 !96   # system->boot
     4D8BB6 18010000 ; LOAD64_into_R14_from_Address_R14_Immediate32 %280 # system->boot->open_protocol
 
     # Open Loaded Image protocol
     50              ; PUSH_RAX                                          # allocate stack for image
     4989E0          ; COPY_RSP_to_R8                                    # arg3 = &image
-    488B15 %LOADED_IMAGE_PROTOCOL_8 ; LOADI64_rel_RDX !LOADED_IMAGE_PROTOCOL_8 # EFI_LOADED_IMAGE_PROTOCOL_GUID (last 64 bits)
+    488B15 %LOADED_IMAGE_PROTOCOL_8 ; LOAD64_rel_RDX !LOADED_IMAGE_PROTOCOL_8 # EFI_LOADED_IMAGE_PROTOCOL_GUID (last 64 bits)
     52              ; PUSH_RDX                                          # push last 64 bits onto stack
-    488B15 %LOADED_IMAGE_PROTOCOL ; LOADI64_rel_RDX !LOADED_IMAGE_PROTOCOL # EFI_LOADED_IMAGE_PROTOCOL_GUID (first 64 bits)
+    488B15 %LOADED_IMAGE_PROTOCOL ; LOAD64_rel_RDX !LOADED_IMAGE_PROTOCOL # EFI_LOADED_IMAGE_PROTOCOL_GUID (first 64 bits)
     52              ; PUSH_RDX                                          # push first 64 bits onto stack
     4889E2          ; COPY_RSP_to_RDX                                   # arg2 = &guid
     6A 01           ; PUSH !1                                           # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
@@ -69,9 +69,9 @@
     # Get root file system
     50              ; PUSH_RAX                                          # allocate stack for rootfs
     4989E0          ; COPY_RSP_to_R8                                    # arg3 = &rootfs
-    488B15 %SIMPLE_FS_PROTOCOL_8 ; LOADI64_rel_RDX %SIMPLE_FS_PROTOCOL_8 # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (last 64 bits)
+    488B15 %SIMPLE_FS_PROTOCOL_8 ; LOAD64_rel_RDX %SIMPLE_FS_PROTOCOL_8 # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (last 64 bits)
     52              ; PUSH_RDX                                          # push last 64 bits onto stack
-    488B15 %SIMPLE_FS_PROTOCOL ; LOADI64_rel_RDX %SIMPLE_FS_PROTOCOL    # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (first 64 bits)
+    488B15 %SIMPLE_FS_PROTOCOL ; LOAD64_rel_RDX %SIMPLE_FS_PROTOCOL     # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (first 64 bits)
     52              ; PUSH_RDX                                          # push first 64 bits onto stack
     4889E2          ; COPY_RSP_to_RDX                                   # arg2 = &guid
     6A 01           ; PUSH !1                                           # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL

@@ -1,7 +1,12 @@
 # SPDX-FileCopyrightText: 2022 Andrius Štikonas <andrius@stikonas.eu>
+# SPDX-FileCopyrightText: 2017 Jeremiah Orians
+# SPDX-FileCopyrightText: 2017 2017 Jan Nieuwenhuizen <janneke@gnu.org>
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 #################################
 # Phase-1 Build hex1 from hex0  #
 #################################
+amd64\artifact\hex0.efi amd64\hex1.hex0 amd64\artifact\hex1.efi
+# hex1 adds support for single character labels and is available in various forms
+# in mescc-tools/amd64_bootstrap to allow you various ways to verify correctness

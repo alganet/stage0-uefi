@@ -42,7 +42,7 @@ DEFINE COPY_R12_to_R8      4D89E0
 DEFINE COPY_R13_to_RCX     4C89E9
 DEFINE COPY_R13_to_R8      4D89E8
 DEFINE COPY_R14_to_RCX     4C89F1
-DEFINE COPY_R15_to_RCX     4989CF
+DEFINE COPY_RCX_to_R15     4989CF
 DEFINE COPY_R15_to_R9      4D89F9
 DEFINE DEC_EBX             FFCB
 DEFINE JE8                 74
@@ -59,7 +59,7 @@ DEFINE LOAD64_into_R13_from_Address_RSP_Immediate8  4C8B6C24
 DEFINE LOAD64_into_R14_from_Address_RDX_Immediate8  4C8B72
 DEFINE LOAD64_into_R14_from_Address_R14_Immediate32 4D8BB6
 DEFINE LOAD8_AL_from_Address_RBX 8A03
-DEFINE LOADI64_rel_RDX     488B15
+DEFINE LOAD64_rel_RDX      488B15
 DEFINE POP_RAX             58
 DEFINE POP_RBX             5B
 DEFINE POP_RSI             5E
@@ -85,16 +85,16 @@ DEFINE TEST_ESI_ESI        85F6
 # efi_main(void *image_handle, struct efi_system_table *system)
 :_start
     COPY_RSP_to_RBP                                   # save stack pointer
-    COPY_R15_to_RCX                                   # save image_handle
+    COPY_RCX_to_R15                                   # save image_handle
     LOAD64_into_R14_from_Address_RDX_Immediate8 !96   # system->boot
     LOAD64_into_R14_from_Address_R14_Immediate32 %280 # system->boot->open_protocol
 
     # Open Loaded Image protocol
     PUSH_RAX                                          # allocate stack for image
     COPY_RSP_to_R8                                    # arg3 = &image
-    LOADI64_rel_RDX %LOADED_IMAGE_PROTOCOL_8          # EFI_LOADED_IMAGE_PROTOCOL_GUID (last 64 bits)
+    LOAD64_rel_RDX %LOADED_IMAGE_PROTOCOL_8           # EFI_LOADED_IMAGE_PROTOCOL_GUID (last 64 bits)
     PUSH_RDX                                          # push last 64 bits onto stack
-    LOADI64_rel_RDX %LOADED_IMAGE_PROTOCOL            # EFI_LOADED_IMAGE_PROTOCOL_GUID (first 64 bits)
+    LOAD64_rel_RDX %LOADED_IMAGE_PROTOCOL             # EFI_LOADED_IMAGE_PROTOCOL_GUID (first 64 bits)
     PUSH_RDX                                          # push first 64 bits onto stack
     COPY_RSP_to_RDX                                   # arg2 = &guid
     PUSH !1                                           # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
@@ -131,9 +131,9 @@ DEFINE TEST_ESI_ESI        85F6
     # Get root file system
     PUSH_RAX                                          # allocate stack for rootfs
     COPY_RSP_to_R8                                    # arg3 = &rootfs
-    LOADI64_rel_RDX %SIMPLE_FS_PROTOCOL_8             # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (last 64 bits)
+    LOAD64_rel_RDX %SIMPLE_FS_PROTOCOL_8              # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (last 64 bits)
     PUSH_RDX                                          # push last 64 bits onto stack
-    LOADI64_rel_RDX %SIMPLE_FS_PROTOCOL               # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (first 64 bits)
+    LOAD64_rel_RDX %SIMPLE_FS_PROTOCOL                # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (first 64 bits)
     PUSH_RDX                                          # push first 64 bits onto stack
     COPY_RSP_to_RDX                                   # arg2 = &guid
     PUSH !1                                           # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
