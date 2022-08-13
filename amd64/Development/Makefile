@@ -9,7 +9,7 @@ lflags = -subsystem:efi_application -nodefaultlib -dll
 
 build = build
 
-all: $(build)/hex0.efi $(build)/kaem-minimal.efi $(build)/hex1.efi
+all: $(build)/hex0.efi $(build)/kaem-minimal.efi $(build)/hex1.efi $(build)/hex2.efi
 
 $(build)/%.o : %.S
 	mkdir -p $(build)
