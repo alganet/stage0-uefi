@@ -62,24 +62,21 @@ _start:
         add rbx, [rdi+48]                  # go to the end of load_options
 
         push 0                             # Save end of arguments (NULL) onto stack
-        jmp loop_options_1
 loop_options:
-        push rbx                           # push another argument onto stack
-loop_options_1:
         cmp rbx, rdx                       # Check if we are done
         je loop_options_done               # We are done
         sub rbx, 2                         # --options
         mov al, [rbx]                      # *options
         cmp al, 0x20                       # if *options != ' '
-        jne loop_options_1                 # then continue looping
+        jne loop_options                   # then continue looping
         mov BYTE PTR [rbx], 0              # zero it
         add rbx, 2                         # ++options
+        push rbx                           # push another argument onto stack
         jmp loop_options                   # next argument
 loop_options_done:
-        pop rdx                            # get output file
+        pop r8                             # get output file
 
         # Open file for writing
-        mov r8, rdx
         push rdx                           # allocate stack for fout
         mov rdx, rsp                       # arg2 = &fout
         push 0                             # arg5 = 0
@@ -108,7 +105,7 @@ core:
 
 keep:
         mov rdx, 0x100000                  # set the size of chars we want
-        call read                          # read it
+        call read                          # read them
         push rax                           # Protect the number of bytes read
 
         mov rdx, rax                       # number of bytes to write
@@ -128,7 +125,7 @@ done:
 
         mov rcx, rbx                       # Get buffer
         call free_pool                     # release it
-        mov rax, 0                         # Exit code 0
+        xor eax, eax                       # Exit code 0
 
         mov rsp, rbp                       # restore stack pointer
         ret                                # return to UEFI
@@ -145,7 +142,7 @@ open_file:
         mov rcx, [rip+rootdir]             # arg1 = rootdir
         sub rsp, 32                        # allocate shadow stack space for UEFI function
         call [rcx+8]                       # rootdir->open()
-        add rsp, 40                        # allocate shadow stack space for UEFI function
+        add rsp, 40                        # deallocate stack
         pop rsi                            # get fin
         ret
 
@@ -174,7 +171,7 @@ allocate_pool:
 # r14: system->boot
 free_pool:
         push rax                           # allocate shadow stack space for UEFI function
-        call [r14+72]                      # system->boot->free_pool(scratch)
+        call [r14+72]                      # system->boot->free_pool(pool)
         pop rax                            # deallocate stack
         ret
 
