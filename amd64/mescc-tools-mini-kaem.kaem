@@ -19,3 +19,10 @@ amd64\artifact\hex1.efi  amd64\hex2.hex1 amd64\artifact\hex2-0.efi
 # to function as an effective linker for later stages of the bootstrap
 # This is a minimal version which will be used to bootstrap a much more advanced
 # version in a later stage.
+
+#################################
+# Phase-2b Build catm from hex2 #
+#################################
+amd64\artifact\hex2-0.efi amd64\catm.hex2 amd64\artifact\catm.efi
+# catm removes the need for cat or shell support for redirection by providing
+# equivalent functionality via catm output_file input1 input2 ... inputN
