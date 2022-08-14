@@ -94,7 +94,7 @@ loop_options2:                             # Skip argv[1]
         call [rcx+8]                       # rootfs->open_volume(rootfs, &rootdir)
         pop rax                            # deallocate stack
         pop rax                            # deallocate stack
-        pop rbx                            # save &rootdir
+        pop rbx                            # save rootdir
 
         # Open file for reading
         push rdx                           # allocate stack for fin

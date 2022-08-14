@@ -163,7 +163,7 @@ DEFINE TEST_ESI_ESI 85F6
     CALL_RCX_Immediate8 !8      # rootfs->open_volume(rootfs, &rootdir)
     POP_RAX                     # deallocate stack
     POP_RAX                     # deallocate stack
-    POP_R14                     # save &rootdir
+    POP_R14                     # save rootdir
 
     # Open file for reading
     PUSH_RDX                    # allocate stack for fin

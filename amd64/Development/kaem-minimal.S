@@ -84,7 +84,7 @@ root_fs:
         call [rcx+8]                      # rootfs->open_volume(rootfs, &rootdir)
         pop rax                           # deallocate stack
         pop rax                           # deallocate stack
-        pop r13                           # save &rootdir
+        pop r13                           # save rootdir
 
         # Open file for reading
         push rdx                          # allocate stack for fin

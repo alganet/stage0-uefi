@@ -184,7 +184,7 @@ DEFINE XOR_R15_R15 4D31FF
     CALL_RCX_Immediate8 !8                            # rootfs->open_volume(rootfs, &rootdir)
     POP_RAX                                           # deallocate stack
     POP_RAX                                           # deallocate stack
-    POP_R13                                           # save &rootdir
+    POP_R13                                           # save rootdir
 
     # Open file for reading
     PUSH_RDX                                          # allocate stack for fin

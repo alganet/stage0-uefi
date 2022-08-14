@@ -205,7 +205,7 @@ DEFINE ZERO_EXTEND_BL 480FB6DB
     CALL_RCX_Immediate8 !8      # rootfs->open_volume(rootfs, &rootdir)
     POP_RAX                     # deallocate stack
     POP_RAX                     # deallocate stack
-    POP_RBX                     # save &rootdir
+    POP_RBX                     # save rootdir
 
     # Open file for reading
     PUSH_RDX                    # allocate stack for fin

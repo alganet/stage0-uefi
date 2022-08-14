@@ -212,7 +212,7 @@ F7 03 00 00                             ; SizeOfRawData
     FF51 08         ; CALL_RCX_Immediate8 !8                            # rootfs->open_volume(rootfs, &rootdir)
     58              ; POP_RAX                                           # deallocate stack
     58              ; POP_RAX                                           # deallocate stack
-    415D            ; POP_R13                                           # save &rootdir
+    415D            ; POP_R13                                           # save rootdir
 
     # Open file for reading
     52              ; PUSH_RDX                                          # allocate stack for fin

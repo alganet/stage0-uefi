@@ -92,7 +92,7 @@ loop_options2:                             # Skip argv[1]
         call [rcx+8]                       # rootfs->open_volume(rootfs, &rootdir)
         pop rax                            # deallocate stack
         pop rax                            # deallocate stack
-        pop r14                            # save &rootdir
+        pop r14                            # save rootdir
 
         # Open file for writing
         push rdx                           # allocate stack for fout

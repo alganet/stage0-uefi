@@ -222,7 +222,7 @@ F0 00                           # SizeOfOptionalHeader
     FF51 08         ; CALL_RCX_Immediate8 !8      # rootfs->open_volume(rootfs, &rootdir)
     58              ; POP_RAX                     # deallocate stack
     58              ; POP_RAX                     # deallocate stack
-    5B              ; POP_RBX                     # save &rootdir
+    5B              ; POP_RBX                     # save rootdir
 
     # Open file for reading
     52              ; PUSH_RDX                    # allocate stack for fin
