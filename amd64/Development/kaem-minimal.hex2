@@ -152,7 +152,7 @@
     66C703 0000     ; STOREI16_into_Address_RBX @0                      # command[i] = 0
     4829F3          ; SUB_RSI_from_RBX                                  # rbx = &command[0]
 
-    48D1EE          ; SHR_RSI                                           # divide i by 2 to go from char to wchar length
+    4883C6 02       ; ADDI8_RSI !2                                      # add 2 to get string length with NULL terminator
 
     488D15 %prefix  ; LEA_RDX_rel %prefix                               # get prefix " +> "
     E8 %File_Print  ; CALLI32 %File_Print                               # print it

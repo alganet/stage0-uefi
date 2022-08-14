@@ -155,7 +155,7 @@ read_command_done:
         mov WORD PTR [rbx], 0             # command[i] = 0
         sub rbx, rsi                      # rbx = &command[0]
 
-        shr rsi                           # divide i by 2 to go from char to wchar length
+        add rsi, 2                        # add 2 to get string length with NULL terminator
 
         lea rdx, [rip+prefix]             # get prefix " +> "
         call File_Print                   # print it

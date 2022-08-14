@@ -79,7 +79,6 @@ DEFINE PUSH_RDI 57
 DEFINE PUSH_R8 4150
 DEFINE PUSH_R9 4151
 DEFINE RET C3
-DEFINE SHR_RSI 48D1EE
 DEFINE STORE16_AX_into_Address_RBX 668903
 DEFINE STORE64_R15_into_Address_RAX 4C8938
 DEFINE STORE64_from_RAX_rel32 488905
@@ -256,7 +255,7 @@ DEFINE XOR_R15_R15 4D31FF
     STOREI16_into_Address_RBX @0                      # command[i] = 0
     SUB_RSI_from_RBX                                  # rbx = &command[0]
 
-    SHR_RSI                                           # divide i by 2 to go from char to wchar length
+    ADDI8_RSI !2                                      # add 2 to get string length with NULL terminator
 
     LEA_RDX_rel %prefix                               # get prefix " +> "
     CALLI32 %File_Print                               # print it
