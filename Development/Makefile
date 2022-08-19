@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-targets = kaem-minimal hex0
+targets = kaem-minimal hex0 hex2
 ESP_SIZE_MIB = 50
 QEMU = qemu-system-x86_64
 
