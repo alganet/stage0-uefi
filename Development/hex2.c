@@ -5,6 +5,7 @@
 #include "efi/efi.h"
 
 #define EOF -4
+#define EXIT_FAILURE 1
 #define TRUE 1
 #define FALSE 0
 #define max_string 4096
@@ -25,6 +26,7 @@ int Base_Address;
 int ip;
 char* scratch;
 struct efi_boot_table *boot;
+efi_handle_t efi_image_handle;
 struct efi_simple_text_output_protocol *stdout;
 char c;
 
@@ -38,6 +40,12 @@ char fgetc(FILE* fin)
     uint16_t temp;
     temp = c;
     return c;
+}
+
+__attribute__((noreturn)) void exit(efi_status_t exit_code)
+{
+    boot->exit(efi_image_handle, exit_code, 0);
+    __builtin_unreachable();
 }
 
 void* memset(void* ptr, int value, int num)
@@ -171,10 +179,7 @@ unsigned GetTarget(char* c)
             return i->target;
         }
     }
-//     fputs("Target label ", stderr);
-//     fputs(c, stderr);
-//     fputs(" is not valid\n", stderr);
-//     exit(EXIT_FAILURE);
+    exit(EXIT_FAILURE);
 }
 
 int storeLabel(FILE* source_file, int ip)
@@ -216,7 +221,7 @@ void Update_Pointer(char ch)
     if(in_set(ch, "%&")) ip = ip + 4; /* Deal with % and & */
     else if(in_set(ch, "@$")) ip = ip + 2; /* Deal with @ and $ */
     else if('!' == ch) ip = ip + 1; /* Deal with ! */
-//     else exit(EXIT_FAILURE);
+    else exit(EXIT_FAILURE);
 }
 
 void storePointer(char ch, FILE* source_file)
@@ -238,14 +243,9 @@ void storePointer(char ch, FILE* source_file)
         Clear_Scratch(scratch);
         consume_token (source_file);
         base = GetTarget (scratch);
+    }
 
-        /* Force universality of behavior */
-        displacement = (target - base);
-    }
-    else
-    {
-        displacement = target - base;
-    }
+    displacement = target - base;
 
     /* output calculated difference */
     if('!' == ch) outputPointer(displacement, 1); /* Deal with ! */
@@ -253,7 +253,7 @@ void storePointer(char ch, FILE* source_file)
     else if('@' == ch) outputPointer(displacement, 2); /* Deal with @ */
     else if('&' == ch) outputPointer(target, 4); /* Deal with & */
     else if('%' == ch) outputPointer(displacement, 4);  /* Deal with % */
-//     else exit(EXIT_FAILURE);
+    else exit(EXIT_FAILURE);
 }
 
 void line_Comment(FILE* source_file)
@@ -349,6 +349,7 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
     struct efi_guid guid1 = EFI_LOADED_IMAGE_PROTOCOL_GUID;
     struct efi_guid guid2 = EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID;
     boot = system->boot;
+    efi_image_handle = image_handle;
     stdout = system->out;
 
     /* Open Loaded Image protocol */
