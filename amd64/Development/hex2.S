@@ -167,7 +167,7 @@ First_pass:
         jne First_pass_0
 
         # Deal with label
-        call StoreLabel
+        jmp StoreLabel
 
 First_pass_0:
         # Check for !

@@ -54,7 +54,7 @@ void* memset(void* ptr, int value, int num)
     for(s = ptr; 0 < num; num = num - 1)
     {
         s[0] = value;
-    s = s + 1;
+        s = s + 1;
     }
 
     return ptr;
@@ -401,5 +401,8 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
 
     input->close(input);
     output->close(output);
+    rootdir->close(rootdir);
+    boot->close_protocol(root_device, &guid2, image_handle, 0);
+    boot->close_protocol(image_handle, &guid1, image_handle, 0);
     return 0;
 }
