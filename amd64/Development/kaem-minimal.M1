@@ -16,7 +16,7 @@ DEFINE CALL_R14_Immediate8 41FF56
 DEFINE CALL_R14_Immediate32 41FF96
 DEFINE CMPI8_AL 3C
 DEFINE COPY_RAX_to_RCX 4889C1
-DEFINE COPY_RBX_to_RCX 4889C3
+DEFINE COPY_RBX_to_RCX 4889D9
 DEFINE COPY_RBX_to_RDX 4889DA
 DEFINE COPY_RBX_to_R8 4989D8
 DEFINE COPY_RBX_to_R12 4989DC
@@ -468,7 +468,7 @@ DEFINE XOR_R15_R15 4D31FF
 
 :print_error
     PUSH_RAX                                          # save exit code
-    LOAD64_into_RDX_rel32 %subprocess_error           # get error message
+    LEA_RDX_rel %subprocess_error                     # get error message
     CALLI32 %File_Print                               # print it
     POP_RAX                                           # restore exit code
 
