@@ -35,13 +35,13 @@ $(build_dir)/%.o : %.c
 
 .PHONY : clean rootfs qemu
 
+all: $(targets2)
+
 qemu: $(build_dir)/disk.img $(OVMF_IMG)
 	$(QEMU) -cpu qemu64 -net none \
 	$(QEMU_KVM) \
 	-drive if=pflash,format=raw,unit=0,file=$(OVMF_IMG),readonly=on \
 	-drive if=ide,format=raw,file=$<
-
-all: $(targets2)
 
 $(build_dir)/disk.img: $(build_dir)/esp.img
 	dd if=/dev/zero of=$@ bs=512 count=$(DISK_SIZE_SECTORS)
