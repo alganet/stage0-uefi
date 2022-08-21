@@ -123,6 +123,9 @@ done:
         mov rcx, r15                       # Get output file
         call close_file                    # close it
 
+        mov rcx, [rip+rootdir]             # Get rootdir
+        call close_file                    # close it
+
         mov rcx, rbx                       # Get buffer
         call free_pool                     # release it
         xor eax, eax                       # Exit code 0

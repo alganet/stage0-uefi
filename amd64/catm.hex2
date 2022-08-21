@@ -252,6 +252,9 @@ F0 00                           # SizeOfOptionalHeader
     4C89F9          ; COPY_R15_to_RCX             # Get output file
     E8 %close_file  ; CALLI32 %close_file         # close it
 
+    488B0D %rootdir ; LOAD64_rel_RCX %rootdir     # Get rootdir
+    E8 %close_file  ; CALLI32 %rootdir            # close it
+
     4889D9          ; COPY_RBX_to_RCX             # Get buffer
     E8 %free_pool   ; CALLI32 %free_pool          # release it
     31C0            ; XOR_EAX_EAX                 # Exit code 0

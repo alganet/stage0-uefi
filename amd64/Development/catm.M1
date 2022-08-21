@@ -179,6 +179,9 @@ DEFINE XOR_EAX_EAX 31C0
     COPY_R15_to_RCX             # Get output file
     CALLI32 %close_file         # close it
 
+    LOAD64_rel_RCX %rootdir     # Get rootdir
+    CALLI32 %rootdir            # close it
+
     COPY_RBX_to_RCX             # Get buffer
     CALLI32 %free_pool          # release it
     XOR_EAX_EAX                 # Exit code 0
