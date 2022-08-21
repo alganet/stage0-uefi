@@ -88,7 +88,8 @@ loop_options2:                             # Skip argv[1]
         call [rcx+8]                       # rootfs->open_volume(rootfs, &rootdir)
         pop rax                            # deallocate stack
         pop rax                            # deallocate stack
-        pop rbx                            # save rootdir
+        pop rbx                            # get rootdir
+        mov [rip+rootdir], rbx             # save rootdir
 
         # Open file for reading
         push rdx                           # allocate stack for fin
@@ -609,23 +610,34 @@ terminate:
         # Free pool
         push rax                           # save exit code
         push r10                           # protect fout
+
         push rax                           # allocate shadow stack space for UEFI function
         mov r14, [rip+SystemBoot]          # get system->boot
         mov rcx, [rip+scratch]             # arg1 = scratch
         call [r14+72]                      # system->boot->free_pool(scratch)
+        pop rax                            # deallocate stack
 
         mov rcx, [rip+fin]                 # arg1 = fin
-        call [rcx+16]                      # fin->close(fin)
-        pop rax                            # deallocate stack
+        call close_file                    # close fin
+
         pop rcx                            # restore fout
-        push rax                           # allocate shadow stack space for UEFI function
-        call [rcx+16]                      # fout->close(fout)
-        pop rax                            # deallocate stack
+        call close_file                    # close fout
+
+        mov rcx, [rip+rootdir]             # get rootdir
+        call close_file                    # close rootdir
+
         pop rax                            # restore exit code
 
 abort: # used for debugging only
         mov rsp, rbp                       # restore stack
         ret                                # return to UEFI
+
+# rcx: file handle
+close_file:
+        push rax                           # allocate shadow stack space for UEFI function
+        call [rcx+16]                      # file_handle->close(file_handle)
+        pop rax                            # deallocate stack
+        ret
 
 # rdx: number of bytes to allocate
 # r14: system->boot
@@ -660,6 +672,9 @@ fin:
 .long 0, 0
 
 scratch:
+.long 0, 0
+
+rootdir:
 .long 0, 0
 
 SystemBoot:

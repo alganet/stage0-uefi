@@ -132,9 +132,9 @@ F0 00                           # SizeOfOptionalHeader
 # [0x148]
 # Start of section headers
 00 00 00 00 00 00 00 00                 ; Name of the section (empty) but could set to ".text"
-52 06 00 00                             ; VirtualSize
+75 06 00 00                             ; VirtualSize
 00 10 00 00                             ; VirtualAddress
-52 06 00 00                             ; SizeOfRawData
+75 06 00 00                             ; SizeOfRawData
 70 01 00 00                             ; PointerToRawData
 00 00 00 00                             ; PointerToRelocations
 00 00 00 00                             ; PointerToLinenumbers
@@ -216,7 +216,8 @@ F0 00                           # SizeOfOptionalHeader
     FF51 08         ; CALL_RCX_Immediate8 !8      # rootfs->open_volume(rootfs, &rootdir)
     58              ; POP_RAX                     # deallocate stack
     58              ; POP_RAX                     # deallocate stack
-    5B              ; POP_RBX                     # save rootdir
+    5B              ; POP_RBX                     # get rootdir
+    48891D %2       ; STORE64_rel_RBX %rootdir    # save rootdir
 
     # Open file for reading
     52              ; PUSH_RDX                    # allocate stack for fin
@@ -737,22 +738,33 @@ F0 00                           # SizeOfOptionalHeader
 :T #:terminate
     50              ; PUSH_RAX                    # save exit code
     4152            ; PUSH_R10                    # protect fout
+
     50              ; PUSH_RAX                    # allocate shadow stack space for UEFI function
     4C8B35 %1       ; LOAD64_rel_R14 %SystemBoot  # get system->boot
     488B0D %0       ; LOAD64_rel_RCX %scratch     # arg1 = scratch
     41FF56 48       ; CALL_R14_Immediate8 !72     # system->boot->free_pool(scratch)
+    58              ; POP_RAX                     # deallocate stack
 
     488B0D %Z       ; LOAD64_rel_RCX %fin         # arg1 = fin
-    FF51 10         ; CALL_RCX_Immediate8 !16     # fin->close(fin)
-    58              ; POP_RAX                     # deallocate stack
+    E8 %3           ; CALLI32 %close_file         # close fin
+
     59              ; POP_RCX                     # restore fout
-    50              ; PUSH_RAX                    # allocate shadow stack space for UEFI function
-    FF51 10         ; CALL_RCX_Immediate8 !16     # fout->close(fout)
-    58              ; POP_RAX                     # deallocate stack
+    E8 %3           ; CALLI32 %close_file         # close fout
+
+    488B0D %2       ; LOAD64_rel_RCX %rootdir     # get rootdir
+    E8 %3           ; CALLI32 %close_file         # close rootdir
+
     58              ; POP_RAX                     # restore exit code
 
     4889EC          ; COPY_RBP_to_RSP             # restore stack
     C3              ; RET                         # return to UEFI
+
+# rcx: file handle
+:3 #:close_file
+    50              ; PUSH_RAX                    # allocate shadow stack space for UEFI function
+    FF51 10         ; CALL_RCX_Immediate8 !16     # file_handle->close(file_handle)
+    58              ; POP_RAX                     # deallocate stack
+    C3              ; RET
 
 # rdx: number of bytes to allocate
 # r14: system->boot
@@ -791,6 +803,9 @@ F0 00                           # SizeOfOptionalHeader
     00000000 00000000
 
 :1 #:SystemBoot
+    00000000 00000000
+
+:2 #:rootdir
     00000000 00000000
 
 # :PE32_end

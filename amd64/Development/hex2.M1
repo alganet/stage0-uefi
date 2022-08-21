@@ -105,6 +105,7 @@ DEFINE STORE32_R11_into_Address_RAX 4C8918
 DEFINE STORE32_R12_into_Address_R11_Immediate8 4D8963
 DEFINE STORE32_R13_into_Address_RAX_Immediate8 4C8968
 DEFINE STORE64_rel_RAX 488905
+DEFINE STORE64_rel_RBX 48891D
 DEFINE STORE64_rel_R14 4C8935
 DEFINE SUBI8_RAX 83E8
 DEFINE SUBI8_RSP 4883EC
@@ -199,7 +200,8 @@ DEFINE ZERO_EXTEND_BL 480FB6DB
     CALL_RCX_Immediate8 !8      # rootfs->open_volume(rootfs, &rootdir)
     POP_RAX                     # deallocate stack
     POP_RAX                     # deallocate stack
-    POP_RBX                     # save rootdir
+    POP_RBX                     # get rootdir
+    STORE64_rel_RBX %rootdir    # save rootdir
 
     # Open file for reading
     PUSH_RDX                    # allocate stack for fin
@@ -720,22 +722,33 @@ DEFINE ZERO_EXTEND_BL 480FB6DB
 :terminate
     PUSH_RAX                    # save exit code
     PUSH_R10                    # protect fout
+
     PUSH_RAX                    # allocate shadow stack space for UEFI function
     LOAD64_rel_R14 %SystemBoot  # get system->boot
     LOAD64_rel_RCX %scratch     # arg1 = scratch
     CALL_R14_Immediate8 !72     # system->boot->free_pool(scratch)
+    POP_RAX                     # deallocate stack
 
     LOAD64_rel_RCX %fin         # arg1 = fin
-    CALL_RCX_Immediate8 !16     # fin->close(fin)
-    POP_RAX                     # deallocate stack
+    CALLI32 %close_file         # close fin
+
     POP_RCX                     # restore fout
-    PUSH_RAX                    # allocate shadow stack space for UEFI function
-    CALL_RCX_Immediate8 !16     # fout->close(fout)
-    POP_RAX                     # deallocate stack
+    CALLI32 %close_file         # close fout
+
+    LOAD64_rel_RCX %rootdir     # get rootdir
+    CALLI32 %close_file         # close rootdir
+
     POP_RAX                     # restore exit code
 
     COPY_RBP_to_RSP             # restore stack
     RET                         # return to UEFI
+
+# rcx: file handle
+:close_file
+    PUSH_RAX                    # allocate shadow stack space for UEFI function
+    CALL_RCX_Immediate8 !16     # file_handle->close(file_handle)
+    POP_RAX                     # deallocate stack
+    RET
 
 # rdx: number of bytes to allocate
 # r14: system->boot
@@ -774,6 +787,9 @@ DEFINE ZERO_EXTEND_BL 480FB6DB
     %0 %0
 
 :SystemBoot
+    %0 %0
+
+:rootdir
     %0 %0
 
 :PE32_end
