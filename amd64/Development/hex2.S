@@ -25,12 +25,6 @@ _start:
         mov r14, [rdx+96]                  # system->boot
         mov [rip+SystemBoot], r14          # save system->boot
 
-        # Allocate pool for scratch area
-        xor edx, edx                       # zero rdx
-        mov dh, 0x8                        # arg2 = 256 * 8 = 2048 = 0x800
-        call allocate_pool
-        mov [rip+scratch], rax             # save scratch
-
         # Open Loaded Image protocol
         push rax                           # allocate stack for image
         mov r8, rsp                        # arg3 = &image
@@ -122,10 +116,12 @@ loop_options2:                             # Skip argv[1]
         call [rcx+8]                       # rootdir->open()
         mov r10, [rsp+40]                  # get fout
 
-        # Allocate pool for structs
+        # Allocate ourselves 16 MiB of memory
         mov rdx, 0x1000000                 # allocate 16 MiB of memory
         call allocate_pool
-        mov r12, rax                       # get structs
+        mov [rip+scratch], rax             # Allocate space for scratch area
+        add rax, 0x800                     # 2 KiB of scratch
+        mov r12, rax                       # save structs pointer
 
         call ClearScratch                  # Zero scratch
         mov r15, -1                        # Our flag for byte processing
@@ -617,9 +613,6 @@ terminate:
         mov r14, [rip+SystemBoot]          # get system->boot
         mov rcx, [rip+scratch]             # arg1 = scratch
         call [r14+72]                      # system->boot->free_pool(scratch)
-
-        mov rcx, r12                       # arg1 = structs
-        call [r14+72]                      # system->boot->free_pool(structs)
 
         mov rcx, [rip+fin]                 # arg1 = fin
         call [rcx+16]                      # fin->close(fin)
