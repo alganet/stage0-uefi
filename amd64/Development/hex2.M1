@@ -9,6 +9,7 @@ DEFINE ADDI8_to_RDI 4883C7
 DEFINE ADDI8_to_RSI 4883C6
 DEFINE ADDI8_to_R12 4983C4
 DEFINE ADDI8_to_R13 4983C5
+DEFINE ADDI32_RAX 4805
 DEFINE ADDI32_RDX 4881C2
 DEFINE ADD_R14_to_RAX 4C01F0
 DEFINE CALLI32 E8
@@ -50,7 +51,6 @@ DEFINE JE32 0F84
 DEFINE JL32 0F8C
 DEFINE JMP32 E9
 DEFINE JNE32 0F85
-DEFINE LOADI8_DH B6
 DEFINE LOADI8_AL B0
 DEFINE LOADI32_RAX 48C7C0
 DEFINE LOADI32_RCX 48C7C1
@@ -135,12 +135,6 @@ DEFINE ZERO_EXTEND_BL 480FB6DB
     COPY_RCX_to_R15                                   # save image_handle
     LOAD64_into_R14_from_Address_RDX_Immediate8 !96   # system->boot
     STORE64_rel_R14 %SystemBoot                       # save system->boot
-
-    # Allocate pool for scratch area
-    XOR_EDX_EDX                                       # zero rdx
-    LOADI8_DH !0x8                                    # arg2 = 256 * 8 = 2048 = 0x800
-    CALLI32 %allocate_pool
-    STORE64_rel_RAX %scratch                          # save scratch
 
     # Open Loaded Image protocol
     PUSH_RAX                                          # allocate stack for image
@@ -233,10 +227,12 @@ DEFINE ZERO_EXTEND_BL 480FB6DB
     CALL_RCX_Immediate8 !8      # rootdir->open()
     LOAD64_into_R10_from_Address_RSP_Immediate8 !40 # get fout
 
-    # Allocate pool for structs
+    # Allocate ourselves 16 MiB of memory
     LOADI32_RDX %0x1000000      # allocate 16 MiB of memory
     CALLI32 %allocate_pool
-    COPY_RAX_to_R12             # get structs
+    STORE64_rel_RAX %scratch    # Allocate space for scratch area
+    ADDI32_RAX %0x800           # 2 KiB of scratch
+    COPY_RAX_to_R12             # save structs pointer
 
     CALLI32 %ClearScratch       # Zero scratch
     LOADI32_R15 %-1             # Our flag for byte processing
@@ -728,9 +724,6 @@ DEFINE ZERO_EXTEND_BL 480FB6DB
     LOAD64_rel_R14 %SystemBoot  # get system->boot
     LOAD64_rel_RCX %scratch     # arg1 = scratch
     CALL_R14_Immediate8 !72     # system->boot->free_pool(scratch)
-
-    COPY_R12_to_RCX             # arg1 = structs
-    CALL_R14_Immediate8 !72     # system->boot->free_pool(structs)
 
     LOAD64_rel_RCX %fin         # arg1 = fin
     CALL_RCX_Immediate8 !16     # fin->close(fin)

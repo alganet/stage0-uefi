@@ -132,9 +132,9 @@ F0 00                           # SizeOfOptionalHeader
 # [0x148]
 # Start of section headers
 00 00 00 00 00 00 00 00                 ; Name of the section (empty) but could set to ".text"
-5C 06 00 00                             ; VirtualSize
+52 06 00 00                             ; VirtualSize
 00 10 00 00                             ; VirtualAddress
-5C 06 00 00                             ; SizeOfRawData
+52 06 00 00                             ; SizeOfRawData
 70 01 00 00                             ; PointerToRawData
 00 00 00 00                             ; PointerToRelocations
 00 00 00 00                             ; PointerToLinenumbers
@@ -152,12 +152,6 @@ F0 00                           # SizeOfOptionalHeader
     4989CF          ; COPY_RCX_to_R15                                   # save image_handle
     4C8B72 60       ; LOAD64_into_R14_from_Address_RDX_Immediate8 !96   # system->boot
     4C8935 %1       ; STORE64_rel_R14 %SystemBoot                       # save system->boot
-
-    # Allocate pool for scratch area
-    31D2            ; XOR_EDX_EDX                                       # zero rdx
-    B6 08           ; LOADI8_DH !0x8                                    # arg2 = 256 * 8 = 2048 = 0x800
-    E8 %U           ; CALLI32 %allocate_pool
-    488905 %0       ; STORE64_rel_RAX %scratch                          # save scratch
 
     # Open Loaded Image protocol
     50              ; PUSH_RAX                                          # allocate stack for image
@@ -250,10 +244,12 @@ F0 00                           # SizeOfOptionalHeader
     FF51 08         ; CALL_RCX_Immediate8 !8      # rootdir->open()
     4C8B5424 28     ; LOAD64_into_R10_from_Address_RSP_Immediate8 !40 # get fout
 
-    # Allocate pool for structs
+    # Allocate ourselves 16 MiB of memory
     48C7C2 00000001 ; LOADI32_RDX %0x1000000      # allocate 16 MiB of memory
     E8 %U           ; CALLI32 %allocate_pool
-    4989C4          ; COPY_RAX_to_R12             # get structs
+    488905 %0       ; STORE64_rel_RAX %scratch    # Allocate space for scratch area
+    4805 00080000   ; ADDI32_RAX %0x800           # 2 KiB of scratch
+    4989C4          ; COPY_RAX_to_R12             # save structs pointer
 
     E8 %H           ; CALLI32 %ClearScratch       # Zero scratch
     49C7C7 FFFFFFFF ; LOADI32_R15 %-1             # Our flag for byte processing
@@ -745,9 +741,6 @@ F0 00                           # SizeOfOptionalHeader
     4C8B35 %1       ; LOAD64_rel_R14 %SystemBoot  # get system->boot
     488B0D %0       ; LOAD64_rel_RCX %scratch     # arg1 = scratch
     41FF56 48       ; CALL_R14_Immediate8 !72     # system->boot->free_pool(scratch)
-
-    4C89E1          ; COPY_R12_to_RCX             # arg1 = structs
-    41FF56 48       ; CALL_R14_Immediate8 !72     # system->boot->free_pool(structs)
 
     488B0D %Z       ; LOAD64_rel_RCX %fin         # arg1 = fin
     FF51 10         ; CALL_RCX_Immediate8 !16     # fin->close(fin)
