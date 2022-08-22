@@ -137,42 +137,23 @@ F0 00                           # SizeOfOptionalHeader
 # efi_main(void *image_handle, struct efi_system_table *system)
 :_start
 
-    4889E5          ; mov_rbp,rsp                                  # save stack pointer
-    4989CF          ; mov_r15,rcx                                  # save image_handle
+    4989CC          ; mov_r12,rcx                                  # save image_handle
     4C8B72 60       ; mov_r14,[rdx+BYTE] !96                       # system->boot
 
     # Open Loaded Image protocol
-    50              ; push_rax                                     # allocate stack for image
-    4989E0          ; mov_r8,rsp                                   # arg3 = &image
-    488B15 %LOADED_IMAGE_PROTOCOL_8 ; mov_rdx,[rip+QWORD] %LOADED_IMAGE_PROTOCOL_8 # EFI_LOADED_IMAGE_PROTOCOL_GUID (last 64 bits)
-    52              ; push_rdx                                     # push last 64 bits onto stack
-    488B15 %LOADED_IMAGE_PROTOCOL ; mov_rdx,[rip+QWORD] %LOADED_IMAGE_PROTOCOL # EFI_LOADED_IMAGE_PROTOCOL_GUID (first 64 bits)
-    52              ; push_rdx                                     # push first 64 bits onto stack
-    4889E2          ; mov_rdx,rsp                                  # arg2 = &guid
-    6A 01           ; push !1                                      # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
-    6A 00           ; push !0                                      # arg5 = NULL
-    4D89F9          ; mov_r9,r15                                   # arg4 = image_handle
-    4C89F9          ; mov_rcx,r15                                  # arg1 = image_handle
-    4883EC 20       ; sub_rsp, !32                                 # allocate shadow stack space for UEFI function
-    41FF96 18010000 ; call_[r14+QWORD] %280                        # system->boot->open_protocol(image_handle, &guid, &image, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
-    488B4424 40     ; mov_rax,[rsp+BYTE] !64                       # get_image
+    4D89E1          ; mov_r9,r12                                   # arg4 = image_handle
+    488D15 %LOADED_IMAGE_PROTOCOL ; lea_rdx,[rip+DWORD] %LOADED_IMAGE_PROTOCOL # guid = &LOADED_IMAGE_PROTOCOL
+    4C89E1          ; mov_rcx,r12                                  # arg1 = image_handle
+    E8 %open_protocol ; call %open_protocol                        # open protocol
     4889C7          ; mov_rax,rdi                                  # save image
 
     # Get root file system
-    50              ; push_rax                                     # allocate stack for rootfs
-    4989E0          ; mov_r8,rsp                                   # arg3 = &rootfs
-    488B15 %SIMPLE_FS_PROTOCOL_8 ; mov_rdx,[rip+QWORD] %SIMPLE_FS_PROTOCOL_8 # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (last 64 bits)
-    52              ; push_rdx                                     # push last 64 bits onto stack
-    488B15 %SIMPLE_FS_PROTOCOL ; mov_rdx,[rip+QWORD] %SIMPLE_FS_PROTOCOL # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (first 64 bits)
-    52              ; push_rdx                                     # push first 64 bits onto stack
-    4889E2          ; mov_rdx,rsp                                  # arg2 = &guid
-    6A 01           ; push !1                                      # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
-    6A 00           ; push !0                                      # arg5 = NULL
-    4D89F9          ; mov_r9,r15                                   # arg4 = image_handle
+    4D89E1          ; mov_r9,r12                                   # arg4 = image_handle
+    488D15 %SIMPLE_FS_PROTOCOL ; lea_rdx,[rip+DWORD] %SIMPLE_FS_PROTOCOL # guid = &SIMPLE_FS_PROTOCOL
     488B4F 18       ; mov_rcx,[rdi+BYTE] !24                       # arg1 = root_device = image->device
-    4883EC 20       ; sub_rsp, !32                                 # allocate shadow stack space for UEFI function
-    41FF96 18010000 ; call_[r14+QWORD] %280                        # system->boot->open_protocol(root_device, &guid, &rootfs, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
-    488B4C24 40     ; mov_rcx,[rsp+BYTE] !64                       # get rootfs
+    48890D %root_device ; mov_[rip+DWORD],rcx %root_device         # save root_device
+    E8 %open_protocol ; call %open_protocol                        # open protocol
+    4889C1          ; mov_rcx,rax                                  # get rootfs
 
     # Get root directory
     52              ; push_rdx                    # allocate stack for rootdir
@@ -183,7 +164,7 @@ F0 00                           # SizeOfOptionalHeader
     58              ; pop_rax                     # deallocate stack
     58              ; pop_rax                     # deallocate stack
     58              ; pop_rax                     # get rootdir
-    488905 %rootdir ; mov_[rip+QWORD],rax %rootdir # save rootdir
+    488905 %rootdir ; mov_[rip+DWORD],rax %rootdir # save rootdir
 
     # Push command line arguments onto stack
     488B5F 38       ; mov_rbx,[rdi+BYTE] !56      # options = image->load_options
@@ -212,7 +193,7 @@ F0 00                           # SizeOfOptionalHeader
     6A 07           ; push !7                     # to get 0x8000000000000003 we set the rightmost 3 bits
     4159            ; pop_r9                      # and then do right rotation by 1
     49D1C9          ; ror_r9                      # arg4 = EFI_FILE_MODE_CREATE| EFI_FILE_MODE_WRITE | EFI_FILE_MODE_READ
-    488B0D %rootdir ; mov_rcx,[rip+QWORD] %rootdir # arg1 = rootdir
+    488B0D %rootdir ; mov_rcx,[rip+DWORD] %rootdir # arg1 = rootdir
     4883EC 20       ; sub_rsp, !32                # allocate shadow stack space for UEFI function
     FF51 08         ; call_[rcx+BYTE] !8          # rootdir->open()
     4883C4 28       ; add_rsp, !40                # deallocate stack
@@ -252,14 +233,23 @@ F0 00                           # SizeOfOptionalHeader
     4C89F9          ; mov_rcx,r15                 # Get output file
     E8 %close_file  ; call %close_file            # close it
 
-    488B0D %rootdir ; mov_rcx,[rip+QWORD] %rootdir # Get rootdir
-    E8 %close_file  ; call %rootdir               # close it
+    488B0D %rootdir ; mov_rcx,[rip+DWORD] %rootdir # Get rootdir
+    E8 %close_file  ; call %close_file            # close it
 
     4889D9          ; mov_rcx,rbx                 # Get buffer
     E8 %free_pool   ; call %free_pool             # release it
     31C0            ; xor_eax,eax                 # Exit code 0
 
-    4889EC          ; mov_rsp,rbp                 # restore stack
+    4D89E0          ; mov_r8,r12                  # arg3 = image_handle
+    488D15 %SIMPLE_FS_PROTOCOL ; lea_rdx,[rip+DWORD] %SIMPLE_FS_PROTOCOL # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID
+    488B0D %root_device ; mov_rcx,[rip+DWORD] %root_device # arg1 = root_device
+    E8 %close_protocol ; call %close_protocol     # close protocol
+
+    4D89E0          ; mov_r8,r12                  # arg3 = image_handle
+    488D15 %LOADED_IMAGE_PROTOCOL ; lea_rdx,[rip+DWORD] %LOADED_IMAGE_PROTOCOL # EFI_LOADED_IMAGE_PROTOCOL_GUID
+    4C89E1          ; mov_rcx,r12                 # arg1 = image_handle
+    E8 %close_protocol ; call %close_protocol     # close protocol
+
     C3              ; ret                         # return to UEFI
 
 # r8: input file name
@@ -271,7 +261,7 @@ F0 00                           # SizeOfOptionalHeader
     6A 01           ; push !1                     # arg5 = EFI_FILE_READ_ONLY
     6A 01           ; push !1                     # prepare to set arg4 to EFI_FILE_MODE_READ
     4159            ; pop_r9                      # arg4 = EFI_FILE_MODE_READ
-    488B0D %rootdir ; mov_rcx,[rip+QWORD] %rootdir # arg1 = rootdir
+    488B0D %rootdir ; mov_rcx,[rip+DWORD] %rootdir # arg1 = rootdir
     4883EC 20       ; sub_rsp, !32                # allocate shadow stack space for UEFI function
     FF51 08         ; call_[rcx+BYTE] !8          # rootdir->open()
     4883C4 28       ; add_rsp, !40                # deallocate stack
@@ -283,6 +273,31 @@ F0 00                           # SizeOfOptionalHeader
     50              ; push_rax                    # allocate shadow stack space for UEFI function
     FF51 10         ; call_[rcx+BYTE] !16         # file_handle->close(file_handle)
     58              ; pop_rax                     # deallocate stack
+    C3              ; ret
+
+# rcx: handle
+# rdx: &guid
+# r9: agent_handle
+# returns interface
+:open_protocol
+    50              ; push_rax                    # allocate stack for interface
+    4989E0          ; mov_r8,rsp                  # arg3 = &interface
+    6A 01           ; push !1                     # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
+    6A 00           ; push !0                     # arg5 = NULL
+    4883EC 20       ; sub_rsp, !32                # allocate shadow stack space for UEFI function
+    41FF96 18010000 ; call_[r14+DWORD] %280       # system->boot->open_protocol(handle, &guid, &interface, agent_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
+    4883C4 30       ; add_rsp, !48                # deallocate stack
+    58              ; pop_rax                     # get image
+    C3              ; ret
+
+# rcx: handle
+# rdx: &guid
+# r8: agent_handle
+:close_protocol
+    4D31C9          ; xor_r9,r9                   # arg4 = NULL
+    4883EC 20       ; sub_rsp, !32                # allocate shadow stack space for UEFI function
+    41FF96 20010000 ; call_[r14+DWORD] %288       # system->boot->close_protocol(handle, &guid, agent_handle, 0)
+    4883C4 20       ; add_rsp, !32                # deallocate stack
     C3              ; ret
 
 # rdx: number of bytes to allocate
@@ -343,17 +358,18 @@ F0 00                           # SizeOfOptionalHeader
     A1 31 1B 5B             ; %0x5b1b31a1
     62 95                   ; @0x9562
     D2 11                   ; @0x11d2
-:LOADED_IMAGE_PROTOCOL_8
     8E 3F 00 A0 C9 69 72 3B ; !0x8e !0x3f !0 !0xa0 !0xc9 !0x69 !0x72 !0x3b
 
 :SIMPLE_FS_PROTOCOL
     22 5B 4E 96             ; %0x0964e5b22
     59 64                   ; @0x6459
     D2 11                   ; @0x11d2
-:SIMPLE_FS_PROTOCOL_8
     8E 39 00 A0 C9 69 72 3B ; !0x8e !0x39 !0 !0xa0 !0xc9 !0x69 !0x72 !0x3b
 
 :rootdir
+    00000000 00000000
+
+:root_device
     00000000 00000000
 
 :PE32_end
