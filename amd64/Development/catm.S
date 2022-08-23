@@ -9,6 +9,7 @@
 
 # efi_main(void *image_handle, struct efi_system_table *system)
 _start:
+        mov rbp, rsp                       # save stack pointer
         mov r12, rcx                       # save image_handle
         mov r14, [rdx+96]                  # system->boot
 
@@ -27,21 +28,18 @@ _start:
         call open_protocol                 # open protocol
         mov rcx, rax                       # get rootfs
 
-        push rdx                           # allocate stack for rootdir
-        mov rdx, rsp                       # arg2 = &rootdir
+        # Get root directory
+        lea rdx, [rip+rootdir]             # arg2 = &rootdir
         push rax                           # allocate shadow stack space for UEFI function
         push rax                           # allocate shadow stack space for UEFI function
         call [rcx+8]                       # rootfs->open_volume(rootfs, &rootdir)
         pop rax                            # deallocate stack
         pop rax                            # deallocate stack
-        pop rax                            # get rootdir
-        mov [rip+rootdir], rax             # save rootdir
 
         # Push command line arguments onto stack
         mov rbx, [rdi+56]                  # options = image->load_options
         mov rdx, rbx                       # save beginning of load_options
         add rbx, [rdi+48]                  # go to the end of load_options
-
         push 0                             # Save end of arguments (NULL) onto stack
 loop_options:
         cmp rbx, rdx                       # Check if we are done
@@ -56,6 +54,8 @@ loop_options:
         jmp loop_options                   # next argument
 loop_options_done:
         pop r8                             # get output file
+        test r8, r8                        # if no output file
+        je exit_early                      # then exit
 
         # Open file for writing
         push rdx                           # allocate stack for fout
@@ -104,12 +104,12 @@ done:
         mov rcx, r15                       # Get output file
         call close_file                    # close it
 
-        mov rcx, [rip+rootdir]             # Get rootdir
-        call close_file                    # close it
-
         mov rcx, rbx                       # Get buffer
         call free_pool                     # release it
-        xor eax, eax                       # Exit code 0
+
+exit_early:
+        mov rcx, [rip+rootdir]             # Get rootdir
+        call close_file                    # close it
 
         mov r8, r12                        # arg3 = image_handle
         lea rdx, [rip+SIMPLE_FS_PROTOCOL]  # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID
@@ -121,6 +121,7 @@ done:
         mov rcx, r12                       # arg1 = image_handle
         call close_protocol                # close protocol
 
+        mov rsp, rbp                       # restore stack pointer
         ret                                # return to UEFI
 
 # r8: input file name

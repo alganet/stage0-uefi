@@ -29,6 +29,8 @@ DEFINE mov_rcx,r15 4C89F9
 DEFINE mov_rdx,rax 4889C2
 DEFINE mov_rdx,rbx 4889DA
 DEFINE mov_rdx,rsp 4889E2
+DEFINE mov_rbp,rsp 4889E5
+DEFINE mov_rsp,rbp 4889EC
 DEFINE mov_r8,rbx 4989D8
 DEFINE mov_r8,rsp 4989E0
 DEFINE mov_r8,r12 4D89E0
@@ -61,10 +63,12 @@ DEFINE sub_rbx, 4883EB
 DEFINE sub_rsp, 4883EC
 DEFINE xor_eax,eax 31C0
 DEFINE test_eax,eax 85C0
+DEFINE test_r8,r8 4D85C0
 DEFINE xor_r9,r9 4D31C9
 
 # efi_main(void *image_handle, struct efi_system_table *system)
 :_start
+    mov_rbp,rsp                                  # save stack pointer
     mov_r12,rcx                                  # save image_handle
     mov_r14,[rdx+BYTE] !96                       # system->boot
 
@@ -84,21 +88,17 @@ DEFINE xor_r9,r9 4D31C9
     mov_rcx,rax                                  # get rootfs
 
     # Get root directory
-    push_rdx                    # allocate stack for rootdir
-    mov_rdx,rsp                 # arg2 = &rootdir
+    lea_rdx,[rip+DWORD] %rootdir # arg2 = &rootdir
     push_rax                    # allocate shadow stack space for UEFI function
     push_rax                    # allocate shadow stack space for UEFI function
     call_[rcx+BYTE] !8          # rootfs->open_volume(rootfs, &rootdir)
     pop_rax                     # deallocate stack
     pop_rax                     # deallocate stack
-    pop_rax                     # get rootdir
-    mov_[rip+DWORD],rax %rootdir # save rootdir
 
     # Push command line arguments onto stack
     mov_rbx,[rdi+BYTE] !56      # options = image->load_options
     mov_rdx,rbx                 # save beginning of load_options
     add_rbx,[rdi+BYTE] !48      # go to the end of load_options
-
     push !0                     # Save end of arguments (NULL) onto stack
 :loop_options
     cmp_rbx,rdx                 # Check if we are done
@@ -113,6 +113,8 @@ DEFINE xor_r9,r9 4D31C9
     jmp !loop_options           # next argument
 :loop_options_done
     pop_r8                      # get output file
+    test_r8,r8                  # if no output file
+    je !exit_early              # then exit
 
     # Open file for writing
     push_rdx                    # allocate stack for fout
@@ -161,12 +163,12 @@ DEFINE xor_r9,r9 4D31C9
     mov_rcx,r15                 # Get output file
     call %close_file            # close it
 
-    mov_rcx,[rip+DWORD] %rootdir # Get rootdir
-    call %close_file            # close it
-
     mov_rcx,rbx                 # Get buffer
     call %free_pool             # release it
-    xor_eax,eax                 # Exit code 0
+
+:exit_early
+    mov_rcx,[rip+DWORD] %rootdir # Get rootdir
+    call %close_file            # close it
 
     mov_r8,r12                                 # arg3 = image_handle
     lea_rdx,[rip+DWORD] %SIMPLE_FS_PROTOCOL    # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID
@@ -178,6 +180,7 @@ DEFINE xor_r9,r9 4D31C9
     mov_rcx,r12                                # arg1 = image_handle
     call %close_protocol                       # close protocol
 
+    mov_rsp,rbp                 # restore stack pointer
     ret                         # return to UEFI
 
 # r8: input file name

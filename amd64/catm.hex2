@@ -136,7 +136,7 @@ F0 00                           # SizeOfOptionalHeader
 
 # efi_main(void *image_handle, struct efi_system_table *system)
 :_start
-
+    4889E5          ; mov_rbp,rsp                                  # save stack pointer
     4989CC          ; mov_r12,rcx                                  # save image_handle
     4C8B72 60       ; mov_r14,[rdx+BYTE] !96                       # system->boot
 
@@ -156,21 +156,17 @@ F0 00                           # SizeOfOptionalHeader
     4889C1          ; mov_rcx,rax                                  # get rootfs
 
     # Get root directory
-    52              ; push_rdx                    # allocate stack for rootdir
-    4889E2          ; mov_rdx,rsp                 # arg2 = &rootdir
+    488D15 %rootdir ; lea_rdx,[rip+DWORD] %rootdir # arg2 = &rootdir
     50              ; push_rax                    # allocate shadow stack space for UEFI function
     50              ; push_rax                    # allocate shadow stack space for UEFI function
     FF51 08         ; call_[rcx+BYTE] !8          # rootfs->open_volume(rootfs, &rootdir)
     58              ; pop_rax                     # deallocate stack
     58              ; pop_rax                     # deallocate stack
-    58              ; pop_rax                     # get rootdir
-    488905 %rootdir ; mov_[rip+DWORD],rax %rootdir # save rootdir
 
     # Push command line arguments onto stack
     488B5F 38       ; mov_rbx,[rdi+BYTE] !56      # options = image->load_options
     4889DA          ; mov_rdx,rbx                 # save beginning of load_options
     48035F 30       ; add_rbx,[rdi+BYTE] !48      # go to the end of load_options
-
     6A 00           ; push !0                     # Save end of arguments (NULL) onto stack
 :loop_options
     4839D3          ; cmp_rbx,rdx                 # Check if we are done
@@ -185,6 +181,8 @@ F0 00                           # SizeOfOptionalHeader
     EB !loop_options ; jmp !loop_options          # next argument
 :loop_options_done
     4158            ; pop_r8                      # get output file
+    4D85C0          ; test_r8,r8                  # if no output file
+    74 !exit_early  ; je !exit_early              # then exit
 
     # Open file for writing
     52              ; push_rdx                    # allocate stack for fout
@@ -233,12 +231,12 @@ F0 00                           # SizeOfOptionalHeader
     4C89F9          ; mov_rcx,r15                 # Get output file
     E8 %close_file  ; call %close_file            # close it
 
-    488B0D %rootdir ; mov_rcx,[rip+DWORD] %rootdir # Get rootdir
-    E8 %close_file  ; call %close_file            # close it
-
     4889D9          ; mov_rcx,rbx                 # Get buffer
     E8 %free_pool   ; call %free_pool             # release it
-    31C0            ; xor_eax,eax                 # Exit code 0
+
+:exit_early
+    488B0D %rootdir ; mov_rcx,[rip+DWORD] %rootdir # Get rootdir
+    E8 %close_file  ; call %close_file            # close it
 
     4D89E0          ; mov_r8,r12                  # arg3 = image_handle
     488D15 %SIMPLE_FS_PROTOCOL ; lea_rdx,[rip+DWORD] %SIMPLE_FS_PROTOCOL # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID
@@ -250,6 +248,7 @@ F0 00                           # SizeOfOptionalHeader
     4C89E1          ; mov_rcx,r12                 # arg1 = image_handle
     E8 %close_protocol ; call %close_protocol     # close protocol
 
+    4889EC          ; mov_rsp,rbp                 # restore stack
     C3              ; ret                         # return to UEFI
 
 # r8: input file name
