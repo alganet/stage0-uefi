@@ -10,7 +10,7 @@ This is a port of stage0-posix (https://github.com/oriansj/stage0-posix) to UEFI
 
 ## Minimal images
 
-It is possible to create images without `kaem-optional-seed.efi` that contain only `hex0-seed.efi`. Those are a bit less automated but if your UEFI implementation lets you to pass command line arguments, you can recreate kaem using just hex0.
+It is possible to create images without `kaem-optional-seed.efi` that contain only `hex0-seed.efi`. Those are a bit less automated but if your UEFI implementation lets you pass command line arguments, you can recreate kaem using just hex0.
 
 - `make MINIMAL=1 qemu`.
 - Open UEFI settings (often F2 but it varies from system to system).
