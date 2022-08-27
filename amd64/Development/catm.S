@@ -11,7 +11,7 @@
 _start:
         mov rbp, rsp                       # save stack pointer
         mov r12, rcx                       # save image_handle
-        mov r14, [rdx+96]                  # system->boot
+        mov r14, [rdx+96]                  # save system->boot
 
         # Open Loaded Image protocol
         mov r9, r12                        # arg4 = image_handle

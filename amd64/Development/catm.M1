@@ -19,13 +19,13 @@ DEFINE jmp EB
 DEFINE jne 75
 DEFINE lea_rdx,[rip+DWORD] 488D15
 DEFINE mov_rdx, 48C7C2
-DEFINE mov_rax,rdi 4889C7
 DEFINE mov_rbx,rax 4889C3
 DEFINE mov_rcx,rax 4889C1
 DEFINE mov_rcx,rbx 4889D9
 DEFINE mov_rcx,r12 4C89E1
 DEFINE mov_rcx,r13 4C89E9
 DEFINE mov_rcx,r15 4C89F9
+DEFINE mov_rdi,rax 4889C7
 DEFINE mov_rdx,rax 4889C2
 DEFINE mov_rdx,rbx 4889DA
 DEFINE mov_rdx,rsp 4889E2
@@ -68,32 +68,32 @@ DEFINE xor_r9,r9 4D31C9
 
 # efi_main(void *image_handle, struct efi_system_table *system)
 :_start
-    mov_rbp,rsp                                  # save stack pointer
-    mov_r12,rcx                                  # save image_handle
-    mov_r14,[rdx+BYTE] !96                       # system->boot
+    mov_rbp,rsp                                # save stack pointer
+    mov_r12,rcx                                # save image_handle
+    mov_r14,[rdx+BYTE] !96                     # save system->boot
 
     # Open Loaded Image protocol
-    mov_r9,r12                                   # arg4 = image_handle
-    lea_rdx,[rip+DWORD] %LOADED_IMAGE_PROTOCOL   # guid = &LOADED_IMAGE_PROTOCOL
-    mov_rcx,r12                                  # arg1 = image_handle
-    call %open_protocol                          # open protocol
-    mov_rax,rdi                                  # save image
+    mov_r9,r12                                 # arg4 = image_handle
+    lea_rdx,[rip+DWORD] %LOADED_IMAGE_PROTOCOL # guid = &LOADED_IMAGE_PROTOCOL
+    mov_rcx,r12                                # arg1 = image_handle
+    call %open_protocol                        # open protocol
+    mov_rdi,rax                                # save image
 
     # Get root file system
-    mov_r9,r12                                   # arg4 = image_handle
-    lea_rdx,[rip+DWORD] %SIMPLE_FS_PROTOCOL      # guid = &SIMPLE_FS_PROTOCOL
-    mov_rcx,[rdi+BYTE] !24                       # arg1 = root_device = image->device
-    mov_[rip+DWORD],rcx %root_device             # save root_device
-    call %open_protocol                          # open protocol
-    mov_rcx,rax                                  # get rootfs
+    mov_r9,r12                                 # arg4 = image_handle
+    lea_rdx,[rip+DWORD] %SIMPLE_FS_PROTOCOL    # guid = &SIMPLE_FS_PROTOCOL
+    mov_rcx,[rdi+BYTE] !24                     # arg1 = root_device = image->device
+    mov_[rip+DWORD],rcx %root_device           # save root_device
+    call %open_protocol                        # open protocol
+    mov_rcx,rax                                # get rootfs
 
     # Get root directory
-    lea_rdx,[rip+DWORD] %rootdir # arg2 = &rootdir
-    push_rax                    # allocate shadow stack space for UEFI function
-    push_rax                    # allocate shadow stack space for UEFI function
-    call_[rcx+BYTE] !8          # rootfs->open_volume(rootfs, &rootdir)
-    pop_rax                     # deallocate stack
-    pop_rax                     # deallocate stack
+    lea_rdx,[rip+DWORD] %rootdir               # arg2 = &rootdir
+    push_rax                                   # allocate shadow stack space for UEFI function
+    push_rax                                   # allocate shadow stack space for UEFI function
+    call_[rcx+BYTE] !8                         # rootfs->open_volume(rootfs, &rootdir)
+    pop_rax                                    # deallocate stack
+    pop_rax                                    # deallocate stack
 
     # Push command line arguments onto stack
     mov_rbx,[rdi+BYTE] !56      # options = image->load_options

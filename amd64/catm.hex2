@@ -138,14 +138,14 @@ F0 00                           # SizeOfOptionalHeader
 :_start
     4889E5          ; mov_rbp,rsp                                  # save stack pointer
     4989CC          ; mov_r12,rcx                                  # save image_handle
-    4C8B72 60       ; mov_r14,[rdx+BYTE] !96                       # system->boot
+    4C8B72 60       ; mov_r14,[rdx+BYTE] !96                       # save system->boot
 
     # Open Loaded Image protocol
     4D89E1          ; mov_r9,r12                                   # arg4 = image_handle
     488D15 %LOADED_IMAGE_PROTOCOL ; lea_rdx,[rip+DWORD] %LOADED_IMAGE_PROTOCOL # guid = &LOADED_IMAGE_PROTOCOL
     4C89E1          ; mov_rcx,r12                                  # arg1 = image_handle
     E8 %open_protocol ; call %open_protocol                        # open protocol
-    4889C7          ; mov_rax,rdi                                  # save image
+    4889C7          ; mov_rdi,rax                                  # save image
 
     # Get root file system
     4D89E1          ; mov_r9,r12                                   # arg4 = image_handle

@@ -21,101 +21,76 @@
 # efi_main(void *image_handle, struct efi_system_table *system)
 _start:
         mov rbp, rsp                       # save stack pointer
-        mov r15, rcx                       # save image_handle
+        mov [rip+image_handle], rcx        # save image_handle
         mov r14, [rdx+96]                  # system->boot
         mov [rip+SystemBoot], r14          # save system->boot
 
         # Open Loaded Image protocol
-        push rax                           # allocate stack for image
-        mov r8, rsp                        # arg3 = &image
-        mov rdx, [rip+LOADED_IMAGE_PROTOCOL+8] # EFI_LOADED_IMAGE_PROTOCOL_GUID (last 64 bits)
-        push rdx                           # push last 64 bits onto stack
-        mov rdx, [rip+LOADED_IMAGE_PROTOCOL] # EFI_LOADED_IMAGE_PROTOCOL_GUID (first 64 bits)
-        push rdx                           # push first 64 bits onto stack
-        mov rdx, rsp                       # arg2 = &guid
-        push 1                             # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
-        push 0                             # arg5 = NULL
-        mov r9, r15                        # arg4 = image_handle
-        mov rcx, r15                       # arg1 = image_handle
-        sub rsp, 32                        # allocate shadow stack space for UEFI function
-        call [r14+280]                     # system->boot->open_protocol(image_handle, &guid, &image, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
-        mov rax, [rsp+64]                  # get image
-        mov rcx, rax                       # save image
-
-        # Command line args
-        mov rbx, [rax+56]                  # options = image->load_options
-
-loop_options1:                             # Skip application name
-        add rbx, 2                         # ++options
-        mov al, [rbx]                      # *options
-        cmp al, 0x20                       # if *options != ' '
-        jne loop_options1                  # then jump
-
-        add rbx, 2                         # ++options
-        mov r12, rbx                       # save input file
-
-loop_options2:                             # Skip argv[1]
-        add rbx, 2                         # ++options
-        mov al, [rbx]                      # *options
-        cmp al, 0x20                       # if *options != ' '
-        jne loop_options2                  # then jump
-
-        mov byte ptr [rbx], 0              # *options = 0
-        add rbx, 2                         # ++options
-        mov r13, rbx                       # save output file
+        mov r9, [rip+image_handle]         # arg4 = image_handle
+        lea rdx, [rip+LOADED_IMAGE_PROTOCOL] # guid = &LOADED_IMAGE_PROTOCOL
+        mov rcx, r9                        # arg1 = image_handle
+        call open_protocol                 # open protocol
+        mov rdi, rax                       # save image
 
         # Get root file system
-        push rax                           # allocate stack for rootfs
-        mov r8, rsp                        # arg3 = &rootfs
-        mov rdx, [rip+SIMPLE_FS_PROTOCOL+8] # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (last 64 bits)
-        push rdx                           # push last 64 bits onto stack
-        mov rdx, [rip+SIMPLE_FS_PROTOCOL]  # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (first 64 bits)
-        push rdx                           # push first 64 bits onto stack
-        mov rdx, rsp                       # arg2 = &guid
-        push 1                             # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
-        push 0                             # arg5 = NULL
-        mov r9, r15                        # arg4 = image_handle
-        mov rcx, [rcx+24]                  # arg1 = root_device = image->device
-        sub rsp, 32                        # allocate shadow stack space for UEFI function
-        call [r14+280]                     # system->boot->open_protocol(root_device, &guid, &rootfs, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
-        mov rcx, [rsp+64]                  # get rootfs
+        mov r9, [rip+image_handle]         # arg4 = image_handle
+        lea rdx, [rip+SIMPLE_FS_PROTOCOL]  # guid = &SIMPLE_FS_PROTOCOL
+        mov rcx, [rdi+24]                  # arg1 = root_device = image->device
+        mov [rip+root_device], rdi         # save root_device
+        call open_protocol                 # open protocol
+        mov rcx, rax                       # get rootfs
 
         # Get root directory
-        push rdx                           # allocate stack for rootdir
-        mov rdx, rsp                       # arg2 = &rootdir
+        lea rdx, [rip+rootdir]             # arg2 = &rootdir
         push rax                           # allocate shadow stack space for UEFI function
         push rax                           # allocate shadow stack space for UEFI function
         call [rcx+8]                       # rootfs->open_volume(rootfs, &rootdir)
         pop rax                            # deallocate stack
         pop rax                            # deallocate stack
-        pop rbx                            # get rootdir
-        mov [rip+rootdir], rbx             # save rootdir
+
+        # Push command line arguments onto stack
+        mov rbx, [rdi+56]                  # options = image->load_options
+        mov rdx, rbx                       # save beginning of load_options
+        add rbx, [rdi+48]                  # go to the end of load_options
+        push 0                             # Save end of arguments (NULL) onto stack
+loop_options:
+        cmp rbx, rdx                       # Check if we are done
+        je loop_options_done               # We are done
+        sub rbx, 2                         # --options
+        mov al, [rbx]                      # *options
+        cmp al, 0x20                       # if *options != ' '
+        jne loop_options                   # then continue looping
+        mov BYTE PTR [rbx], 0              # zero it
+        add rbx, 2                         # ++options
+        push rbx                           # push another argument onto stack
+        jmp loop_options                   # next argument
+loop_options_done:
 
         # Open file for reading
-        push rdx                           # allocate stack for fin
-        mov rdx, rsp                       # arg2 = &fin
+        lea rdx, [rip+fin]                 # arg2 = &fin
+        pop r8                             # arg3 = in
         push 1                             # arg5 = EFI_FILE_READ_ONLY
         push 1                             # prepare to set arg4 to EFI_FILE_MODE_READ
         pop r9                             # arg4 = EFI_FILE_MODE_READ
-        mov r8, r12                        # arg3 = in
-        mov rcx, rbx                       # arg1 = rootdir
+        mov rcx, [rip+rootdir]             # arg1 = rootdir
         sub rsp, 32                        # allocate shadow stack space for UEFI function
         call [rcx+8]                       # rootdir->open()
-        mov rax, [rsp+40]                  # get fin
-        mov [rip+fin], rax                 # save fin
+        add rsp, 40                        # deallocate stack
 
         # Open file for writing
-        push rdx                           # allocate stack for fout
-        mov rdx, rsp                       # arg2 = &fout
+        pop r8                             # arg3 = out
+        push 1                             # Set exit code in case of failure
+        cmp r8, 0                          # If NULL
+        je failed_output                   # then exit
+        lea rdx, [rip+fout]                # arg2 = &fout
         push 0                             # arg5 = 0
         push 7                             # to get 0x8000000000000003 we set the rightmost 3 bits
         pop r9                             # and then do right rotation by 1
         ror r9                             # arg4 = EFI_FILE_MODE_CREATE| EFI_FILE_MODE_WRITE | EFI_FILE_MODE_READ
-        mov r8, r13                        # arg3 = out
-        mov rcx, rbx                       # arg1 = rootdir
+        mov rcx, [rip+rootdir]             # arg1 = rootdir
         sub rsp, 32                        # allocate shadow stack space for UEFI function
         call [rcx+8]                       # rootdir->open()
-        mov r10, [rsp+40]                  # get fout
+        add rsp, 40                        # deallocate stack
 
         # Allocate ourselves 16 MiB of memory
         mov rdx, 0x1000000                 # allocate 16 MiB of memory
@@ -132,7 +107,6 @@ loop_options2:                             # Skip argv[1]
         call First_pass                    # Process it
 
         # rewind input file
-        push r10                           # Protect r10
         push r11                           # Protect r11
         mov rcx, [rip+fin]                 # Using our input file
         xor edx, edx                       # Offset Zero
@@ -142,7 +116,6 @@ loop_options2:                             # Skip argv[1]
         pop rax                            # deallocate stack
         pop rax                            # deallocate stack
         pop r11                            # restore r11
-        pop r10                            # restore r10
 
         mov r15, -1                        # Our flag for byte processing
         mov r14, 0                         # temp storage for the sum
@@ -389,7 +362,6 @@ print:
 
 
 Read_byte:
-        push r10                           # Protect r10
         push r11                           # Protect r11
         mov rcx, [rip+fin]                 # arg1 = fin
         push 1                             # size = 1
@@ -407,7 +379,6 @@ Read_byte:
         pop rax                            # save input to rax
         pop rsi                            # save size to rsi
         pop r11                            # restore r11
-        pop r10                            # restore r10
 
         # If the file ended (0 bytes read) return EOF
         test esi, esi                      # if size == 0
@@ -419,9 +390,8 @@ Read_byte_1:
 
 # Writes bytes stored in rax
 print_chars:
-        push r10                           # Protect r10
         push r11                           # Protect r11
-        mov rcx, r10                       # arg1 = fout
+        mov rcx, [rip+fout]                # arg1 = fout
         push rdx                           # set size
         mov rdx, rsp                       # arg2 = &size
         push rax                           # allocate stack
@@ -432,7 +402,6 @@ print_chars:
         call [rcx+40]                      # fout->write()
         add rsp, 40                        # deallocate stack
         pop r11                            # restore r11
-        pop r10                            # restore r10
 
         ret                                # return
 
@@ -609,22 +578,32 @@ Done:
 terminate:
         # Free pool
         push rax                           # save exit code
-        push r10                           # protect fout
 
-        push rax                           # allocate shadow stack space for UEFI function
         mov r14, [rip+SystemBoot]          # get system->boot
         mov rcx, [rip+scratch]             # arg1 = scratch
+        push rax                           # allocate shadow stack space for UEFI function
         call [r14+72]                      # system->boot->free_pool(scratch)
         pop rax                            # deallocate stack
 
-        mov rcx, [rip+fin]                 # arg1 = fin
-        call close_file                    # close fin
-
-        pop rcx                            # restore fout
+        mov rcx, [rip+fout]                # get fout
         call close_file                    # close fout
+
+failed_output:
+        mov rcx, [rip+fin]                 # get fin
+        call close_file                    # close fin
 
         mov rcx, [rip+rootdir]             # get rootdir
         call close_file                    # close rootdir
+
+        mov r8, [rip+image_handle]         # arg3 = image_handle
+        lea rdx, [rip+SIMPLE_FS_PROTOCOL]  # guid = &SIMPLE_FS_PROTOCOL
+        mov rcx, [rip+root_device]         # arg1 = root_device
+        call close_protocol                # close protocol
+
+        mov r8, [rip+image_handle]         # arg3 = image_handle
+        lea rdx, [rip+LOADED_IMAGE_PROTOCOL] # guid = &LOADED_IMAGE_PROTOCOL
+        mov rcx, r8                        # arg1 = image_handle
+        call close_protocol                # close protocol
 
         pop rax                            # restore exit code
 
@@ -637,6 +616,31 @@ close_file:
         push rax                           # allocate shadow stack space for UEFI function
         call [rcx+16]                      # file_handle->close(file_handle)
         pop rax                            # deallocate stack
+        ret
+
+# rcx: handle
+# rdx: &guid
+# r9: agent_handle
+# returns interface
+open_protocol:
+        push rax                           # allocate stack for interface
+        mov r8, rsp                        # arg3 = &interface
+        push 1                             # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
+        push 0                             # arg5 = NULL
+        sub rsp, 32                        # allocate shadow stack space for UEFI function
+        call [r14+280]                     # system->boot->open_protocol(handle, &guid, &interface, agent_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
+        add rsp, 48                        # deallocate stack
+        pop rax                            # get interface
+        ret
+
+# rcx: handle
+# rdx: &guid
+# r8: agent_handle
+close_protocol:
+        xor r9, r9                         # arg4 = NULL
+        sub rsp, 32                        # allocate shadow stack space for UEFI function
+        call [r14+288]                     # system->boot->close_protocol(handle, &guid, agent_handle, 0)
+        add rsp, 32                        # deallocate stack
         ret
 
 # rdx: number of bytes to allocate
@@ -671,6 +675,9 @@ SIMPLE_FS_PROTOCOL:
 fin:
 .long 0, 0
 
+fout:
+.long 0, 0
+
 scratch:
 .long 0, 0
 
@@ -678,4 +685,10 @@ rootdir:
 .long 0, 0
 
 SystemBoot:
+.long 0, 0
+
+image_handle:
+.long 0, 0
+
+root_device:
 .long 0, 0
