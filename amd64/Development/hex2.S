@@ -67,15 +67,20 @@ loop_options:
 loop_options_done:
 
         # Open file for reading
-        lea rdx, [rip+fin]                 # arg2 = &fin
         pop r8                             # arg3 = in
+        push 1                             # Set exit code in case of failure
+        cmp r8, 0                          # If NULL
+        je failed_input                    # then exit
+        lea rdx, [rip+fin]                 # arg2 = &fin
         push 1                             # arg5 = EFI_FILE_READ_ONLY
         push 1                             # prepare to set arg4 to EFI_FILE_MODE_READ
         pop r9                             # arg4 = EFI_FILE_MODE_READ
         mov rcx, [rip+rootdir]             # arg1 = rootdir
         sub rsp, 32                        # allocate shadow stack space for UEFI function
         call [rcx+8]                       # rootdir->open()
-        add rsp, 40                        # deallocate stack
+        cmp rax, 0                         # If failed to open
+        jne failed_input                   # then exit
+        add rsp, 48                        # deallocate stack
 
         # Open file for writing
         pop r8                             # arg3 = out
@@ -90,7 +95,7 @@ loop_options_done:
         mov rcx, [rip+rootdir]             # arg1 = rootdir
         sub rsp, 32                        # allocate shadow stack space for UEFI function
         call [rcx+8]                       # rootdir->open()
-        add rsp, 40                        # deallocate stack
+        add rsp, 48                        # deallocate stack
 
         # Allocate ourselves 16 MiB of memory
         mov rdx, 0x1000000                 # allocate 16 MiB of memory
@@ -592,6 +597,7 @@ failed_output:
         mov rcx, [rip+fin]                 # get fin
         call close_file                    # close fin
 
+failed_input:
         mov rcx, [rip+rootdir]             # get rootdir
         call close_file                    # close rootdir
 

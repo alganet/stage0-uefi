@@ -132,9 +132,9 @@ F0 00                           # SizeOfOptionalHeader
 # [0x148]
 # Start of section headers
 00 00 00 00 00 00 00 00                 ; Name of the section (empty) but could set to ".text"
-C7 06 00 00                             ; VirtualSize
+DD 06 00 00                             ; VirtualSize
 00 10 00 00                             ; VirtualAddress
-C7 06 00 00                             ; SizeOfRawData
+DD 06 00 00                             ; SizeOfRawData
 70 01 00 00                             ; PointerToRawData
 00 00 00 00                             ; PointerToRelocations
 00 00 00 00                             ; PointerToLinenumbers
@@ -195,15 +195,20 @@ C7 06 00 00                             ; SizeOfRawData
 :b #:loop_options_done
 
     # Open file for reading
-    488D15 %0       ; lea_rdx,[rip+DWORD] %fin    # arg2 = &fin
     4158            ; pop_r8                      # arg3 = in
+    6A 01           ; push !1                     # Set exit code in case of failure
+    4983F8 00       ; cmp_r8, !0                  # If NULL
+    0F84 %8         ; je %failed_input            # then exit
+    488D15 %0       ; lea_rdx,[rip+DWORD] %fin    # arg2 = &fin
     6A 01           ; push !1                     # arg5 = EFI_FILE_READ_ONLY
     6A 01           ; push !1                     # prepare to set arg4 to EFI_FILE_MODE_READ
     4159            ; pop_r9                      # arg4 = EFI_FILE_MODE_READ
     488B0D %3       ; mov_rcx,[rip+DWORD] %rootdir # arg1 = rootdir
     4883EC 20       ; sub_rsp, !32                # allocate shadow stack space for UEFI function
     FF51 08         ; call_[rcx+BYTE] !8          # rootdir->open()
-    4883C4 28       ; add_rsp, !40                # deallocate stack
+    4883F8 00       ; cmp_rax, !0                 # If failed to open
+    0F85 %8         ; jne %failed_input           # then exit
+    4883C4 30       ; add_rsp, !48                # deallocate stack
 
     # Open file for writing
     4158            ; pop_r8                      # arg3 = out
@@ -218,7 +223,7 @@ C7 06 00 00                             ; SizeOfRawData
     488B0D %3       ; mov_rcx,[rip+DWORD] %rootdir # arg1 = rootdir
     4883EC 20       ; sub_rsp, !32                # allocate shadow stack space for UEFI function
     FF51 08         ; call_[rcx+BYTE] !8          # rootdir->open()
-    4883C4 28       ; add_rsp, !40                # deallocate stack
+    4883C4 30       ; add_rsp, !48                # deallocate stack
 
     # Allocate ourselves 16 MiB of memory
     48C7C2 00000001 ; mov_rdx, %0x1000000         # allocate 16 MiB of memory
@@ -720,6 +725,7 @@ C7 06 00 00                             ; SizeOfRawData
     488B0D %0       ; mov_rcx,[rip+DWORD] %fin    # get fin
     E8 %U           ; call %close_file            # close fin
 
+:8 # :failed_input
     488B0D %3       ; mov_rcx,[rip+DWORD] %rootdir # get rootdir
     E8 %U           ; call %close_file            # close rootdir
 
