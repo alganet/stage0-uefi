@@ -14,7 +14,7 @@ amd64\artifact\hex0.efi amd64\hex1.hex0 amd64\artifact\hex1.efi
 #################################
 # Phase-2 Build hex2 from hex1  #
 #################################
-amd64\artifact\hex1.efi  amd64\hex2.hex1 amd64\artifact\hex2-0.efi
+amd64\artifact\hex1.efi amd64\hex2.hex1 amd64\artifact\hex2-0.efi
 # hex2 adds support for long labels and absolute addresses thus allowing it
 # to function as an effective linker for later stages of the bootstrap
 # This is a minimal version which will be used to bootstrap a much more advanced

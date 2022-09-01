@@ -63,6 +63,10 @@ DEFINE mov_al,[rsi] 8A06
 DEFINE mov_bl,[rdi] 8A1F
 DEFINE mov_rcx,[rbx] 488B0B
 DEFINE mov_rcx,[rcx] 488B09
+DEFINE mov_[rax],r11 4C8918
+DEFINE mov_[rbx], C603
+DEFINE mov_[rbx],al 8803
+DEFINE mov_[rbx],rcx 48890B
 DEFINE mov_rax,[rcx+BYTE] 488B41
 DEFINE mov_rbx,[rdi+BYTE] 488B5F
 DEFINE mov_rcx,[rdi+BYTE] 488B4F
@@ -80,10 +84,6 @@ DEFINE mov_[r11+BYTE],r12 4D8963
 DEFINE mov_[rip+DWORD],rax 488905
 DEFINE mov_[rip+DWORD],rcx 48890D
 DEFINE mov_[rip+DWORD],r14 4C8935
-DEFINE mov_[rax],r11 4C8918
-DEFINE mov_[rbx], C603
-DEFINE mov_[rbx],al 8803
-DEFINE mov_[rbx],rcx 48890B
 DEFINE movzx_rax,al 480FB6C0
 DEFINE movzx_rbx,bl 480FB6DB
 DEFINE not_r15 49F7D7

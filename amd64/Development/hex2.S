@@ -36,7 +36,7 @@ _start:
         mov r9, [rip+image_handle]         # arg4 = image_handle
         lea rdx, [rip+SIMPLE_FS_PROTOCOL]  # guid = &SIMPLE_FS_PROTOCOL
         mov rcx, [rdi+24]                  # arg1 = root_device = image->device
-        mov [rip+root_device], rdi         # save root_device
+        mov [rip+root_device], rcx         # save root_device
         call open_protocol                 # open protocol
         mov rcx, rax                       # get rootfs
 
