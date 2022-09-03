@@ -663,7 +663,6 @@ allocate_pool:
         pop rax                            # get pool
         ret
 
-.data
 
 # Protocol GUIDs
 LOADED_IMAGE_PROTOCOL:

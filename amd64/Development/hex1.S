@@ -378,7 +378,6 @@ abort: # used for debugging only
         mov rsp, rbp                       # restore stack
         ret                                # return to UEFI
 
-.data
 
 # Protocol GUIDs
 LOADED_IMAGE_PROTOCOL:

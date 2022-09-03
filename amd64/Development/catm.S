@@ -225,7 +225,6 @@ write:
         pop rax                            # save size to rax
         ret
 
-.data
 
 # Protocol GUIDs
 LOADED_IMAGE_PROTOCOL:

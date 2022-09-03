@@ -425,8 +425,6 @@ read_byte:
 
         ret
 
-.data
-
 # Protocol GUIDs
 LOADED_IMAGE_PROTOCOL:
 .long  0x5b1b31a1
