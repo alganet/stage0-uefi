@@ -356,6 +356,13 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
     boot->open_protocol(image_handle, &guid1, (void **) &image, image_handle, 0,
                                 EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL);
 
+    /* Get root file system */
+    efi_handle_t root_device = image->device;
+    boot->open_protocol(root_device, &guid2, (void **) &rootfs, image_handle, 0,
+                                EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL);
+    /* Get root directory */
+    rootfs->open_volume(rootfs, &rootdir);
+
     /* Command line args */
     uint16_t *options = image->load_options;
     uint16_t *in;
@@ -370,12 +377,6 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
     *options = 0;
     out = ++options;
 
-    /* Get root file system */
-    efi_handle_t root_device = image->device;
-    boot->open_protocol(root_device, &guid2, (void **) &rootfs, image_handle, 0,
-                                EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL);
-    /* Get root directory */
-    rootfs->open_volume(rootfs, &rootdir);
 
     /* Open file for writing */
     struct efi_file_protocol *fout;
