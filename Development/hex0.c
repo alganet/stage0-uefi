@@ -40,13 +40,13 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
     *options = 0;
     out = ++options;
 
-    /* Open file for writing */
-    struct efi_file_protocol *fout;
-    rootdir->open(rootdir, &fout, out, EFI_FILE_MODE_CREATE| EFI_FILE_MODE_WRITE | EFI_FILE_MODE_READ, 0);
-
     /* Open file for reading */
     struct efi_file_protocol *fin;
     rootdir->open(rootdir, &fin, in, EFI_FILE_MODE_READ, EFI_FILE_READ_ONLY);
+
+    /* Open file for writing */
+    struct efi_file_protocol *fout;
+    rootdir->open(rootdir, &fout, out, EFI_FILE_MODE_CREATE| EFI_FILE_MODE_WRITE | EFI_FILE_MODE_READ, 0);
 
     uint8_t c;
     uint64_t size;
@@ -115,6 +115,9 @@ not_comment:
 terminate:
     fin->close(fin);
     fout->close(fout);
+    rootdir->close(rootdir);
+    system->boot->close_protocol(root_device, &guid2, image_handle, 0);
+    system->boot->close_protocol(image_handle, &guid1, image_handle, 0);
 
     return 0;
 }

@@ -3,6 +3,9 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+# Some of the functions are deliberately inlined at the slight expense of
+# binary size to avoid tricky jump calculations in hex0 code.
+
 # DOS MZ header
 4D 5A                           # Signature
 00 00                           # Number of bytes in the last page.
@@ -148,7 +151,8 @@ CF 03 00 00                             ; SizeOfRawData
     6A 00           ; push !0                                      # arg5 = NULL
     4883EC 20       ; sub_rsp, !32                                 # allocate shadow stack space for UEFI function
     41FF96 18010000 ; call_[r14+DWORD] %280                        # system->boot->open_protocol(image_handle, &guid, &image, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
-    488B7C24 30     ; mov_rdi,[rsp+BYTE] !48                       # save image
+    4883C4 30       ; add_rsp, !48                                 # deallocate stack
+    5F              ; pop_rdi                                      # get image
 
     # Get root file system
     4D89F9          ; mov_r9,r15                                   # arg4 = image_handle
@@ -161,7 +165,8 @@ CF 03 00 00                             ; SizeOfRawData
     6A 00           ; push !0                                      # arg5 = NULL
     4883EC 20       ; sub_rsp, !32                                 # allocate shadow stack space for UEFI function
     41FF96 18010000 ; call_[r14+DWORD] %280                        # system->boot->open_protocol(root_device, &guid, &rootfs, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
-    488B4C24 30     ; mov_rcx,[rsp+BYTE] !48                       # get rootfs
+    4883C4 30       ; add_rsp, !48                                 # deallocate stack
+    59              ; pop rcx                                      # get rootfs
 
     # Get root directory
     50              ; push_rax                    # allocate stack for rootdir
@@ -178,18 +183,18 @@ CF 03 00 00                             ; SizeOfRawData
     4889DA          ; mov_rdx,rbx                 # save beginning of load_options
     48035F 30       ; add_rbx,[rdi+BYTE] !48      # go to the end of load_options
     6A 00           ; push !0                     # Save end of arguments (NULL) onto stack
-# :loop_options
+# :loop_options [_start + 0x71]
     4839D3          ; cmp_rbx,rdx                 # Check if we are done
     74 14           ; je8 !loop_options_done # We are done
     4883EB 02       ; sub_rbx, !2                 # --options
     8A03            ; mov_al,[rbx]                # *options
     3C 20           ; cmp_al, !0x20               # if *options != ' '
-    75 F1           ; jne8 !loop_options         # then continue looping
+    75 F1           ; jne8 !loop_options          # then continue looping
     C603 00         ; mov_[rbx], !0               # zero it
     4883C3 02       ; add_rbx, !2                 # ++options
     53              ; push_rbx                    # push another argument onto stack
-    EB E7           ; jmp8 !loop_options         # next argument
-# :loop_options_done
+    EB E7           ; jmp8 !loop_options          # next argument
+# :loop_options_done [_start + 0x8A]
 
     # Open file for reading
     4158            ; pop_r8                      # arg3 = in

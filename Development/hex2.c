@@ -377,14 +377,13 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
     *options = 0;
     out = ++options;
 
+    /* Open file for reading */
+    struct efi_file_protocol *input;
+    rootdir->open(rootdir, &input, in, EFI_FILE_MODE_READ, EFI_FILE_READ_ONLY);
 
     /* Open file for writing */
     struct efi_file_protocol *fout;
     rootdir->open(rootdir, &fout, out, EFI_FILE_MODE_CREATE| EFI_FILE_MODE_WRITE | EFI_FILE_MODE_READ, 0);
-
-    /* Open file for reading */
-    struct efi_file_protocol *input;
-    rootdir->open(rootdir, &input, in, EFI_FILE_MODE_READ, EFI_FILE_READ_ONLY);
 
     jump_table = NULL;
     Base_Address = 0x00600000;

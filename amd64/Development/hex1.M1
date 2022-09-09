@@ -52,8 +52,6 @@ DEFINE mov_rax,[rax] 488B00
 DEFINE mov_[rbx], C603
 DEFINE mov_rbx,[rdi+BYTE] 488B5F
 DEFINE mov_rcx,[rdi+BYTE] 488B4F
-DEFINE mov_rcx,[rsp+BYTE] 488B4C24
-DEFINE mov_rdi,[rsp+BYTE] 488B7C24
 DEFINE mov_r14,[rdx+BYTE] 4C8B72
 DEFINE mov_[rax],r13 4C8928
 DEFINE not_r15 49F7D7
@@ -88,6 +86,8 @@ DEFINE xor_edx,edx 31D2
 DEFINE xor_esi,esi 31F6
 DEFINE xor_r9,r9 4D31C9
 
+# Some of the functions are deliberately inlined at the slight expense of
+# binary size to avoid tricky jump calculations in hex0 code.
 
 # efi_main(void *image_handle, struct efi_system_table *system)
 :_start
@@ -105,7 +105,8 @@ DEFINE xor_r9,r9 4D31C9
     push !0                                      # arg5 = NULL
     sub_rsp, !32                                 # allocate shadow stack space for UEFI function
     call_[r14+DWORD] %280                        # system->boot->open_protocol(image_handle, &guid, &image, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
-    mov_rdi,[rsp+BYTE] !48                       # save image
+    add_rsp, !48                                 # deallocate stack
+    pop_rdi                                      # get image
 
     # Get root file system
     mov_r9,r15                                   # arg4 = image_handle
@@ -118,7 +119,8 @@ DEFINE xor_r9,r9 4D31C9
     push !0                                      # arg5 = NULL
     sub_rsp, !32                                 # allocate shadow stack space for UEFI function
     call_[r14+DWORD] %280                        # system->boot->open_protocol(root_device, &guid, &rootfs, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
-    mov_rcx,[rsp+BYTE] !48                       # get rootfs
+    add_rsp, !48                                 # deallocate stack
+    pop_rcx                                      # get rootfs
 
     # Get root directory
     push_rax                    # allocate stack for rootdir

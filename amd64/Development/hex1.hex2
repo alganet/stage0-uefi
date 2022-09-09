@@ -3,6 +3,8 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+# Some of the functions are deliberately inlined at the slight expense of
+# binary size to avoid tricky jump calculations in hex0 code.
 
 # efi_main(void *image_handle, struct efi_system_table *system)
 :_start
@@ -20,7 +22,8 @@
     6A 00           ; push !0                                      # arg5 = NULL
     4883EC 20       ; sub_rsp, !32                                 # allocate shadow stack space for UEFI function
     41FF96 18010000 ; call_[r14+DWORD] %280                        # system->boot->open_protocol(image_handle, &guid, &image, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
-    488B7C24 30     ; mov_rdi,[rsp+BYTE] !48                       # save image
+    4883C4 30       ; add_rsp, !48                                 # deallocate stack
+    5F              ; pop_rdi                                      # get image
 
     # Get root file system
     4D89F9          ; mov_r9,r15                                   # arg4 = image_handle
@@ -33,7 +36,8 @@
     6A 00           ; push !0                                      # arg5 = NULL
     4883EC 20       ; sub_rsp, !32                                 # allocate shadow stack space for UEFI function
     41FF96 18010000 ; call_[r14+DWORD] %280                        # system->boot->open_protocol(root_device, &guid, &rootfs, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
-    488B4C24 30     ; mov_rcx,[rsp+BYTE] !48                       # get rootfs
+    4883C4 30       ; add_rsp, !48                                 # deallocate stack
+    59              ; pop rcx                                      # get rootfs
 
     # Get root directory
     50              ; push_rax                    # allocate stack for rootdir

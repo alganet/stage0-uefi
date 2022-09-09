@@ -25,7 +25,8 @@ _start:
         push 0                             # arg5 = NULL
         sub rsp, 32                        # allocate shadow stack space for UEFI function
         call [r14+280]                     # system->boot->open_protocol(image_handle, &guid, &image, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
-        mov rdi, [rsp+48]                  # save image
+        add rsp, 48                        # deallocate stack
+        pop rdi                            # get image
 
         # Get root file system
         mov r9, r15                        # arg4 = image_handle
@@ -38,7 +39,8 @@ _start:
         push 0                             # arg5 = NULL
         sub rsp, 32                        # allocate shadow stack space for UEFI function
         call [r14+280]                     # system->boot->open_protocol(root_device, &guid, &rootfs, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
-        mov rcx, [rsp+48]                  # get rootfs
+        add rsp, 48                        # deallocate stack
+        pop rcx                            # get rootfs
 
         # Get root directory
         push rax                           # allocate stack for rootdir
@@ -181,7 +183,7 @@ First_pass_pointer:
         jmp First_pass                     # Loop again
 
 First_pass_done:
-        RET
+        ret
 
 hex:
         # deal with EOF
