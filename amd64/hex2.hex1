@@ -242,7 +242,7 @@ DD 06 00 00                             ; SizeOfRawData
     # rewind input file
     4153            ; push_r11                    # Protect r11
     488B0D %0       ; mov_rcx,[rip+DWORD] %fin    # Using our input file
-    31D2            ; xor_edx_edx                 # Offset Zero
+    31D2            ; xor_edx,edx                 # Offset Zero
     50              ; push_rax                    # allocate shadow stack space for UEFI function
     50              ; push_rax                    # allocate shadow stack space for UEFI function
     FF51 38         ; call_[rcx+BYTE] !56         # fin->set_position(fin, 0)
@@ -500,7 +500,7 @@ DD 06 00 00                             ; SizeOfRawData
     488B0D %0       ; mov_rcx,[rip+DWORD] %fin    # arg1 = fin
     6A 01           ; push !1                     # size = 1
     4889E2          ; mov_rdx,rsb                 # arg2 = &size
-    31F6            ; xor_esi_esi                 # zero rsi
+    31F6            ; xor_esi,esi                 # zero rsi
     56              ; push_rsi                    # allocate stack
     4989E0          ; mov_rsp,r8                  # arg3 = &input
     50              ; push_rax                    # allocate shadow stack space for UEFI function
@@ -707,7 +707,7 @@ DD 06 00 00                             ; SizeOfRawData
     E9 %T           ; jmp %terminate
 
 :S #:Done
-    31C0            ; xor_eax_eax                 # Set exit code 0
+    31C0            ; xor_eax,eax                 # Set exit code 0
 
 :T #:terminate
     50              ; push_rax                    # save exit code

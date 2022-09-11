@@ -10,6 +10,7 @@
 _start:
         mov rbp, rsp                      # save stack pointer
         mov [rip+image_handle], rcx       # save image_handle
+        mov rbx, rcx                      # save image_handle
         mov rax, [rdx+64]                 # system->out
         mov [rip+system_out], rax         # save system->out
         mov r14, [rdx+96]                 # system->boot
@@ -22,69 +23,53 @@ _start:
         call [r14+240]                    # system->boot->set_watchdog_timer
 
         # Open Loaded Image protocol
-        push rax                          # allocate stack for image
-        mov r8, rsp                       # arg3 = &image
-        mov rdx, [rip+LOADED_IMAGE_PROTOCOL+8] # EFI_LOADED_IMAGE_PROTOCOL_GUID (last 64 bits)
-        push rdx                          # push last 64 bits onto stack
-        mov rdx, [rip+LOADED_IMAGE_PROTOCOL] # EFI_LOADED_IMAGE_PROTOCOL_GUID (first 64 bits)
-        push rdx                          # push first 64 bits onto stack
-        mov rdx, rsp                      # arg2 = &guid
-        push 1                            # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
-        push 0                            # arg5 = NULL
-        mov r9, [rip+image_handle]        # arg4 = image_handle
-        mov rcx, r9                       # arg1 = image_handle
-        sub  rsp, 32                      # allocate shadow stack space for UEFI function
-        call [r14+280]                    # system->boot->open_protocol(image_handle, &guid, &image, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
-        mov  rax, [rsp+64]                # get image
+        mov r9, rbx                       # arg4 = image_handle
+        lea rdx, [rip+LOADED_IMAGE_PROTOCOL] # guid = &LOADED_IMAGE_PROTOCOL
+        mov rcx, rbx                      # arg1 = image_handle
+        call open_protocol                # open protocol
+        mov rdi, rax                      # save image
         mov [rip+image], rax              # save image
 
-        # Command line args
-        mov rcx, rax                      # copy image to rcx
-        mov rbx, [rax+56]                 # options = image->load_options
-
-        # Skip application name
-loop_options1:
-        add rbx, 2                        # ++options
-        mov al, [rbx]                     # *options
-        cmp al, 0x20                      # if *options == ' '
-        je  loop_options2                 # then jump
-        test al, al                       # if options != 0
-        jne loop_options1                 # then loop
-
-        # Use default_file
-        lea r12, [rip+default_file]       # Use "kaem.amd64"
-        jmp root_fs                       # jump
-
-loop_options2:
-        add rbx, 2                        # ++options
-        mov r12, rbx                      # save script file
-
-root_fs:
         # Get root file system
-        push rax                          # allocate stack for rootfs
-        mov r8, rsp                       # arg3 = &rootfs
-        mov rdx, [rip+SIMPLE_FS_PROTOCOL+8] # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (last 64 bits)
-        push rdx                          # push last 64 bits onto stack
-        mov rdx, [rip+SIMPLE_FS_PROTOCOL] # EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID (first 64 bits)
-        push rdx                          # push first 64 bits onto stack
-        mov rdx, rsp                      # arg2 = &guid
-        push 1                            # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
-        push 0                            # arg5 = NULL
-        mov r9, [rip+image_handle]        # arg4 = image_handle
-        mov rcx, [rcx+24]                 # arg1 = root_device = image->device
-        sub rsp, 32                       # allocate shadow stack space for UEFI function
-        call [r14+280]                    # system->boot->open_protocol(root_device, &guid, &rootfs, image_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
-        mov rcx, [rsp+64]                 # get rootfs
+        mov r9, rbx                       # arg4 = image_handle
+        lea rdx, [rip+SIMPLE_FS_PROTOCOL] # guid = &SIMPLE_FS_PROTOCOL
+        mov rcx, [rdi+24]                 # arg1 = root_device = image->device
+        mov [rip+root_device], rcx        # save root_device
+        call open_protocol                # open protocol
+        mov rcx, rax                      # get rootfs
 
         # Get root directory
-        push rdx                          # allocate stack for rootdir
-        mov rdx, rsp                      # arg2 = &rootdir
+        lea rdx, [rip+rootdir]            # arg2 = &rootdir
         push rax                          # allocate shadow stack space for UEFI function
         push rax                          # allocate shadow stack space for UEFI function
         call [rcx+8]                      # rootfs->open_volume(rootfs, &rootdir)
         pop rax                           # deallocate stack
         pop rax                           # deallocate stack
-        pop r13                           # save rootdir
+
+        # Push command line arguments onto stack
+        mov rbx, [rdi+56]                 # options = image->load_options
+        mov rdx, rbx                      # save beginning of load_options
+        add rbx, [rdi+48]                 # go to the end of load_options
+        push 0                            # Save end of arguments (NULL) onto stack
+loop_options:
+        cmp rbx, rdx                      # Check if we are done
+        je loop_options_done              # We are done
+        sub rbx, 2                        # --options
+        mov al, [rbx]                     # *options
+        cmp al, 0x20                      # if *options != ' '
+        jne loop_options                  # then continue looping
+        mov BYTE PTR [rbx], 0             # zero it
+        add rbx, 2                        # ++options
+        push rbx                          # push another argument onto stack
+        jmp loop_options                  # next argument
+loop_options_done:
+
+        pop r8                            # get input file
+        test r8, r8                       # Check if argument is specified
+        jne arg_done                      # then use it
+        # Else use default_file
+        lea r8, [rip+default_file]        # Use "kaem.amd64"
+arg_done:
 
         # Open file for reading
         push rdx                          # allocate stack for fin
@@ -92,26 +77,19 @@ root_fs:
         push 1                            # arg5 = EFI_FILE_READ_ONLY
         push 1                            # prepare to set arg4 to EFI_FILE_MODE_READ
         pop r9                            # arg4 = EFI_FILE_MODE_READ
-        mov r8, r12                       # arg3 = script
-        mov rcx, r13                      # arg1 = rootdir
+                                          # arg3 = script
+        mov rcx, [rip+rootdir]            # arg1 = rootdir
         sub rsp, 32                       # allocate shadow stack space for UEFI function
         call [rcx+8]                      # rootdir->open()
         test eax, eax                     # if status != EFI_SUCCESS
-        jne abort                         # then exit without closing file
+        jne terminate_2                   # then exit without closing file
         mov r12, [rsp+40]                 # get fin
 
         # Allocate pool for command
-        push rdx                          # allocate stack for command
-        mov r8, rsp                       # arg3 = &command
         xor edx, edx                      # zero rdx
         mov dh, 0x10                      # arg2 = 4096 = 0x1000
-        push 2
-        pop rcx                           # arg1 = EFI_LOADER_DATA
-        push rax                          # allocate shadow stack space for UEFI function
-        push rax                          # allocate shadow stack space for UEFI function
-        push rax                          # allocate shadow stack space for UEFI function
-        call [r14+64]                     # system->boot->allocate_pool(EFI_LOADER_DATA, 4096, &commmand)
-        mov rbx, [rsp+24]                 # get command
+        call allocate_pool                # allocate memory
+        mov rbx, rax                      # get command
 
 next_command:
         xor esi, esi                      # i = 0
@@ -175,7 +153,7 @@ read_command_done:
         push 1                            # prepare to set arg4 to EFI_FILE_MODE_READ
         pop r9                            # arg4 = EFI_FILE_MODE_READ
         mov r8, rbx                       # arg3 = command
-        mov rcx, r13                      # arg1 = rootdir
+        mov rcx, [rip+rootdir]            # arg1 = rootdir
         sub rsp, 32                       # allocate shadow stack space for UEFI function
         call [rcx+8]                      # rootdir->open()
         test eax, eax                     # if status != EFI_SUCCESS
@@ -187,35 +165,21 @@ read_command_done:
         mov WORD PTR [r15], 0x20          # restore command line options by readding ' '
 
         # Allocate pool for file_info
-        push rdx                          # allocate stack for file_info
-        mov r8, rsp                       # arg3 = &file_info
         xor edx, edx                      # zero rdx
         mov dh, 0x10                      # arg2 = 4096 = 0x1000
-        push 2
-        pop rcx                           # arg1 = EFI_LOADER_DATA
-        push rax                          # allocate shadow stack space for UEFI function
-        push rax                          # allocate shadow stack space for UEFI function
-        push rax                          # allocate shadow stack space for UEFI function
-        call [r14+64]                     # system->boot->allocate_pool(EFI_LOADER_DATA, 4096, &file_info)
-        pop rax                           # deallocate stack
-        pop rax                           # deallocate stack
-        pop rax                           # deallocate stack
-        pop r9                            # get file_info (arg4 for get_info)
+        call allocate_pool                # allocate memory
+        mov r9, rax                       # get file_info (arg4 for get_info)
 
         # Get file info
-        push r9                           # save file_info
+        push rax                          # save file_info
         push rax                          # allocate stack for file_size
         mov r8, rsp                       # arg3 = &file_size
         mov QWORD PTR [r8], 0x1000        # file_size = 0x1000
-        mov rdx, [rip+SIMPLE_FS_PROTOCOL+8] # EFI_FILE_INFO_PROTOCOL (last 64 bits)
-        push rdx                          # push last 64 bits onto stack
-        mov rdx, [rip+FILE_INFO_PROTOCOL] # EFI_FILE_INFO_PROTOCOL (first 64 bits)
-        push rdx                          # push first 64 bits onto stack
-        mov rdx, rsp                      # arg2 = &guid
+        lea rdx, [rip+FILE_INFO_PROTOCOL] # arg2 = &EFI_FILE_INFO_PROTOCOL
         mov rcx, rdi                      # arg1 = fcmd
         sub rsp, 32                       # allocate shadow stack space for UEFI function
         call [rcx+64]                     # fcmd->get_info(fcmd, &guid, &file_size, file_info)
-        add rsp, 56                       # deallocate stack
+        add rsp, 40                       # deallocate stack
         pop rcx                           # restore file_info
         mov rdx, [rcx+8]                  # get file_size
 
@@ -228,18 +192,8 @@ read_command_done:
 
         # Allocate pool for executable
         push rdx                          # save file_size onto stack
-        push rdx                          # allocate stack for executable
-        mov r8, rsp                       # arg3 = &executable
-        push 2
-        pop rcx                           # arg1 = EFI_LOADER_DATA
-        push rax                          # allocate shadow stack space for UEFI function
-        push rax                          # allocate shadow stack space for UEFI function
-        push rax                          # allocate shadow stack space for UEFI function
-        call [r14+64]                     # system->boot->allocate_pool(EFI_LOADER_DATA, file_size, &executable)
-        pop rax                           # deallocate stack
-        pop rax                           # deallocate stack
-        pop rax                           # deallocate stack
-        pop r15                           # get executable
+        call allocate_pool                # allocate memory
+        mov r15, rax                      # get executable
         pop rdx                           # restore file_size
 
         # Load executable into memory
@@ -264,23 +218,12 @@ read_command_done:
         pop rdi                           # restore file_size
 
         # Allocate memory for device_path struct
-        push rdx                          # allocate stack for device_path
-        mov r8, rsp                       # arg3 = &device_path
         push 28                           # 4 + sizeof(struct efi_device_path_protocol)
         pop rdx                           # arg2 = 28
-        push 2
-        pop rcx                           # arg1 = EFI_LOADER_DATA
-        push rax                          # allocate shadow stack space for UEFI function
-        push rax                          # allocate shadow stack space for UEFI function
-        push rax                          # allocate shadow stack space for UEFI function
-        call [r14+64]                     # system->boot->allocate_pool(EFI_LOADER_DATA, 28, &device_path)
-        pop rax                           # deallocate stack
-        pop rax                           # deallocate stack
-        pop rax                           # deallocate stack
-        pop r8                            # get device_path
+        call allocate_pool                # allocate memory
+        mov r8, rax                       # get device_path
 
         # Initialize struct
-        mov rax, r8                       # Make a pointer to device_path members
         mov BYTE PTR [rax], 1             # device_path->type = HARDWARE_DEVICE_PATH
         inc rax                           # next member
         mov BYTE PTR [rax], 3             # device_path->subtype = MEMORY_MAPPED
@@ -328,27 +271,22 @@ read_command_done:
         pop rax                           # deallocate stack
 
         # Open Child Image
-        push rax                          # allocate stack for child_image
-        mov r8, rsp                       # arg3 = &child_image
-        mov rdx, [rip+LOADED_IMAGE_PROTOCOL+8] # EFI_LOADED_IMAGE_PROTOCOL_GUID (last 64 bits)
-        push rdx                          # push last 64 bits onto stack
-        mov rdx, [rip+LOADED_IMAGE_PROTOCOL] # EFI_LOADED_IMAGE_PROTOCOL_GUID (first 64 bits)
-        push rdx                          # push first 64 bits onto stack
-        mov rdx, rsp                      # arg2 = &guid
-        push 1                            # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
-        push 0                            # arg5 = NULL
         mov r9, rdi                       # arg4 = child_ih
-        mov rcx, rdi                      # arg1 = child_ih
-        sub  rsp, 32                      # allocate shadow stack space for UEFI function
-        call [r14+280]                    # system->boot->open_protocol(child_ih, &guid, &child_image, child_ih, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
-        add rsp, 64                       # deallocate stack
-        pop rax                           # get child_image
+        lea rdx, [rip+LOADED_IMAGE_PROTOCOL] # guid = &LOADED_IMAGE_PROTOCOL
+        push rdx                          # save &LOADED_IMAGE_PROTOCOL
+        mov rcx, r9                       # arg1 = child_ih
+        call open_protocol                # open protocol
 
         mov [rax+56], rbx                 # child_image->load_options = command
         mov [rax+48], rsi                 # set child_image->load_options_size
         mov rcx, [rip+image]              # get image
         mov rcx, [rcx+24]                 # image->device
         mov [rax+24], rcx                 # child_image->device = image->device
+
+        mov r8, rdi                       # arg3 = image_handle
+        pop rdx                           # arg2 = &LOADED_IMAGE_PROTOCOL
+        mov rcx, r8                       # arg1 = image_handle
+        call close_protocol               # close protocol
 
         # Run command
         xor r8, r8                        # arg3 = 0 (ExitData)
@@ -382,13 +320,29 @@ terminate:
 
         mov rcx, r12                      # arg1 = fin
         call [rcx+16]                     # fin->close(fin)
+
+        mov rcx, [rip+rootdir]            # arg1 = rootdir
+        call [rcx+16]                     # rootdir->close(rootdir)
+
         pop rax                           # deallocate stack
         pop rax                           # restore exit code
 
 # Exit without closing script file
+terminate_2:
+        mov r8, [rip+image_handle]        # arg3 = image_handle
+        push r8                           # save image_handle
+        lea rdx, [rip+SIMPLE_FS_PROTOCOL] # guid = &SIMPLE_FS_PROTOCOL
+        mov rcx, [rip+root_device]        # arg1 = root_device
+        call close_protocol               # close protocol
+
+        pop r8                            # arg3 = image_handle
+        lea rdx, [rip+LOADED_IMAGE_PROTOCOL] # guid = &LOADED_IMAGE_PROTOCOL
+        mov rcx, r8                       # arg1 = image_handle
+        call close_protocol               # close protocol
+
 abort:
         mov rsp, rbp                      # restore stack
-        ret
+        ret                               # return to UEFI
 
 # File_Print function
 # Receives WCHAR* in RDX
@@ -425,6 +379,45 @@ read_byte:
 
         ret
 
+# rcx: handle
+# rdx: &guid
+# r9: agent_handle
+# returns interface
+open_protocol:
+        push rax                           # allocate stack for interface
+        mov r8, rsp                        # arg3 = &interface
+        push 1                             # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
+        push 0                             # arg5 = NULL
+        sub rsp, 32                        # allocate shadow stack space for UEFI function
+        call [r14+280]                     # system->boot->open_protocol(handle, &guid, &interface, agent_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
+        add rsp, 48                        # deallocate stack
+        pop rax                            # get interface
+        ret
+
+# rcx: handle
+# rdx: &guid
+# r8: agent_handle
+close_protocol:
+        xor r9, r9                         # arg4 = NULL
+        sub rsp, 32                        # allocate shadow stack space for UEFI function
+        call [r14+288]                     # system->boot->close_protocol(handle, &guid, agent_handle, 0)
+        add rsp, 32                        # deallocate stack
+        ret
+
+# rdx: number of bytes to allocate
+# r14: system->boot
+# returns pointer in rax
+allocate_pool:
+        push rdx                           # allocate stack for pool pointer
+        mov r8, rsp                        # arg3 = &pool
+        push 2
+        pop rcx                            # arg1 = EFI_LOADER_DATA
+        sub rsp, 24                        # allocate shadow stack space for UEFI
+        call [r14+64]                      # system->boot->allocate_pool(EFI_LOADER_DATA, 2048, &pool)
+        add rsp, 24                        # deallocate stack
+        pop rax                            # get pool
+        ret
+
 # Protocol GUIDs
 LOADED_IMAGE_PROTOCOL:
 .long  0x5b1b31a1
@@ -442,7 +435,7 @@ FILE_INFO_PROTOCOL:
 .long  0x09576e92
 .short 0x6d3f
 .short 0x11d2
-# last 64-bits of GUID are identical to SIMPLE_FS_PROTOCOL
+.byte  0x8e, 0x39, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b
 
 default_file:
 .byte 0x6B, 0, 0x61, 0, 0x65, 0, 0x6D, 0, 0x2E, 0
@@ -461,6 +454,12 @@ image_handle:
 .long 0, 0
 
 image:
+.long 0, 0
+
+rootdir:
+.long 0, 0
+
+root_device:
 .long 0, 0
 
 system_out:

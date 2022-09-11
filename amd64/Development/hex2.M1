@@ -110,9 +110,9 @@ DEFINE sub_rbx, 4883EB
 DEFINE sub_rsp, 4883EC
 DEFINE sub_rax,rdx 4829D0
 DEFINE test_esi_esi 85F6
-DEFINE xor_eax_eax 31C0
-DEFINE xor_edx_edx 31D2
-DEFINE xor_esi_esi 31F6
+DEFINE xor_eax,eax 31C0
+DEFINE xor_edx,edx 31D2
+DEFINE xor_esi,esi 31F6
 DEFINE xor_r9,r9 4D31C9
 
         # Register usage:
@@ -223,7 +223,7 @@ DEFINE xor_r9,r9 4D31C9
     # rewind input file
     push_r11                    # Protect r11
     mov_rcx,[rip+DWORD] %fin    # Using our input file
-    xor_edx_edx                 # Offset Zero
+    xor_edx,edx                 # Offset Zero
     push_rax                    # allocate shadow stack space for UEFI function
     push_rax                    # allocate shadow stack space for UEFI function
     call_[rcx+BYTE] !56         # fin->set_position(fin, 0)
@@ -481,7 +481,7 @@ DEFINE xor_r9,r9 4D31C9
     mov_rcx,[rip+DWORD] %fin    # arg1 = fin
     push !1                     # size = 1
     mov_rdx,rsb                 # arg2 = &size
-    xor_esi_esi                 # zero rsi
+    xor_esi,esi                 # zero rsi
     push_rsi                    # allocate stack
     mov_rsp,r8                  # arg3 = &input
     push_rax                    # allocate shadow stack space for UEFI function
@@ -688,7 +688,7 @@ DEFINE xor_r9,r9 4D31C9
     jmp %terminate
 
 :Done
-    xor_eax_eax                 # Set exit code 0
+    xor_eax,eax                 # Set exit code 0
 
 :terminate
     push_rax                    # save exit code

@@ -55,6 +55,8 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
     struct efi_file_protocol *fin;
     efi_status_t status = rootdir->open(rootdir, &fin, script_file, EFI_FILE_MODE_READ, EFI_FILE_READ_ONLY);
     if(status != EFI_SUCCESS) {
+        system->boot->close_protocol(root_device, &guid2, image_handle, 0);
+        system->boot->close_protocol(image_handle, &guid1, image_handle, 0);
         return status;
     }
 
@@ -78,8 +80,11 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
         {
             fin->read(fin, &size, &c);
             if (size == 0) {
-                rootdir->close(fin);
+                fin->close(fin);
+                rootdir->close(rootdir);
                 system->boot->free_pool(command);
+                system->boot->close_protocol(root_device, &guid2, image_handle, 0);
+                system->boot->close_protocol(image_handle, &guid1, image_handle, 0);
                 return EFI_SUCCESS;
             }
             else if(c == '\n') {
@@ -115,7 +120,10 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
         efi_status_t status = rootdir->open(rootdir, &fcmd, command, EFI_FILE_MODE_READ, EFI_FILE_READ_ONLY);
         if(status != EFI_SUCCESS) {
             system->boot->free_pool(command);
-            rootdir->close(fin);
+            fin->close(fin);
+            rootdir->close(rootdir);
+            system->boot->close_protocol(root_device, &guid2, image_handle, 0);
+            system->boot->close_protocol(image_handle, &guid1, image_handle, 0);
             return status;
         }
 
@@ -129,7 +137,7 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
         file_size = file_info->file_size;
         system->boot->free_pool(file_info);
 
-        system->boot->allocate_pool(EFI_LOADER_CODE, file_size, (void **) &executable);
+        system->boot->allocate_pool(EFI_LOADER_DATA, file_size, (void **) &executable);
         fcmd->read(fcmd, &file_size, executable);
         fcmd->close(fcmd);
 
@@ -138,7 +146,7 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
         device_path->type = HARDWARE_DEVICE_PATH;
         device_path->subtype = MEMORY_MAPPED;
         device_path->length = sizeof(struct efi_device_path_protocol);
-        device_path->memory_type = EFI_LOADER_CODE;
+        device_path->memory_type = EFI_LOADER_DATA;
         device_path->start_address = (uint64_t) executable;
         device_path->end_address = (uint64_t) executable + file_size;
         device_path[1].type = END_HARDWARE_DEVICE_PATH;
@@ -154,6 +162,7 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
         child_image->load_options = command;
         child_image->load_options_size = 2 * (i + 1);
         child_image->device = image->device;
+        system->boot->close_protocol(child_ih, &guid1, child_ih, 0);
 
         /* Run command */
         return_code = system->boot->start_image(child_ih, 0, 0);
@@ -161,7 +170,10 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
         if(return_code != 0) {
             system->boot->free_pool(command);
             system->out->output_string(system->out, L"Subprocess error.\r\n");
-            rootdir->close(fin);
+            fin->close(fin);
+            rootdir->close(rootdir);
+            system->boot->close_protocol(root_device, &guid2, image_handle, 0);
+            system->boot->close_protocol(image_handle, &guid1, image_handle, 0);
             return return_code;
         }
     } while(true);
