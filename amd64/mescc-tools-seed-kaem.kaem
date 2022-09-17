@@ -12,5 +12,5 @@ bootstrap-seeds\UEFI\amd64\hex0-seed.efi amd64\hex0.hex0 amd64\artifact\hex0.efi
 #########################################
 # Phase-0b Build minimal kaem from hex0 #
 #########################################
-amd64\artifact\hex0.efi amd64\kaem-minimal.hex0 amd64\artifact\kaem-0.efi
+amd64\artifact\hex0.efi amd64\kaem-optional.hex0 amd64\artifact\kaem-0.efi
 # for checksum validation reasons

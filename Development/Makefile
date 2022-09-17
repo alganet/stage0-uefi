@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-targets = kaem-minimal hex0 hex2
+targets = kaem-optional hex0 hex2
 ESP_SIZE_MIB = 50
 QEMU = qemu-system-x86_64
 
@@ -59,7 +59,7 @@ rootfs: $(targets2) $(sources)
 	cp -R rootfs $(build_dir)
 	mkdir -p $(rootfs_dir)/EFI/BOOT/
 	cp $^ $(rootfs_dir)/EFI/BOOT/
-	mv $(rootfs_dir)/EFI/BOOT/kaem-minimal.efi $(rootfs_dir)/EFI/BOOT/BOOTX64.EFI
+	mv $(rootfs_dir)/EFI/BOOT/kaem-optional.efi $(rootfs_dir)/EFI/BOOT/BOOTX64.EFI
 	cp ../amd64/hex0.hex0 $(rootfs_dir)/hex0_amd64.hex0
 
 clean:

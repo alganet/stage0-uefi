@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-targets = kaem-minimal hex0 hex1 hex2 catm
+targets = kaem-optional hex0 hex1 hex2 catm
 
 cc = clang
 cflags = -ffreestanding -MMD -mno-red-zone -std=c11 -target x86_64-unknown-windows -masm=intel
