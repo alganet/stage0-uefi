@@ -118,7 +118,7 @@ F0 00                           # SizeOfOptionalHeader
 
 # [0x148]
 # Start of section headers
-00 00 00 00 00 00 00 00                 ; Name of the section (empty) but could set to ".text"
+2E 74 65 78 74 00 00 00                 ; Name of the section: ".text"
 %PE32_end>PE32_text                     ; VirtualSize
 00 10 00 00                             ; VirtualAddress
 %PE32_end>PE32_text                     ; SizeOfRawData

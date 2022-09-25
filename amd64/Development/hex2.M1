@@ -109,7 +109,7 @@ DEFINE sub_rax, 83E8
 DEFINE sub_rbx, 4883EB
 DEFINE sub_rsp, 4883EC
 DEFINE sub_rax,rdx 4829D0
-DEFINE test_esi_esi 85F6
+DEFINE test_esi,esi 85F6
 DEFINE xor_eax,eax 31C0
 DEFINE xor_edx,edx 31D2
 DEFINE xor_esi,esi 31F6
@@ -496,7 +496,7 @@ DEFINE xor_r9,r9 4D31C9
     pop_r11                     # restore r11
 
     # If the file ended (0 bytes read) return EOF
-    test_esi_esi
+    test_esi,esi
     jne %Read_byte_1
     mov_rax, %-4                # Put EOF in rax
 

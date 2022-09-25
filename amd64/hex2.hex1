@@ -515,7 +515,7 @@ DD 06 00 00                             ; SizeOfRawData
     415B            ; pop_r11                     # restore r11
 
     # If the file ended (0 bytes read) return EOF
-    85F6            ; test_esi_esi
+    85F6            ; test_esi,esi
     0F85 %y         ; jne %Read_byte_1
     48C7C0 FCFFFFFF ; mov_rax, %-4                # Put EOF in rax
 
