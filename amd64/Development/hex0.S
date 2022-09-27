@@ -11,6 +11,7 @@
 # but we need to leave stack space
 # rax, rcx, rdx, r8, r9, r10 and r11 are volatile and can be changed by called function
 
+.intel_syntax
 .global _start
 .text
 

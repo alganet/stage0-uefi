@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-
+.intel_syntax
 .global _start
 .text
 

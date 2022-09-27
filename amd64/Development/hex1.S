@@ -6,6 +6,7 @@
 # Some of the functions are deliberately inlined at the slight expense of
 # binary size to avoid tricky jump calculations in hex0 code.
 
+.intel_syntax
 .global _start
 .text
 
