@@ -925,7 +925,7 @@ File_Print_Done:
 
 
 # fputc function
-# receives CHAR in RAX and FILE* in R14
+# receives CHAR in RAX
 # writes char and returns
 fputc:
     push rcx                    # Protect RCX
@@ -1024,9 +1024,6 @@ fout:
 .long 0, 0
 
 rootdir:
-.long 0, 0
-
-SystemBoot:
 .long 0, 0
 
 image_handle:

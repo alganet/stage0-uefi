@@ -1060,7 +1060,7 @@ DEFINE xor_r13,r13 4D31ED
 
 
 # fputc function
-# receives CHAR in RAX and FILE* in R14
+# receives CHAR in RAX
 # writes char and returns
 :fputc
     push_rcx                           # Protect RCX
@@ -1161,9 +1161,6 @@ DEFINE xor_r13,r13 4D31ED
     %0 %0
 
 :rootdir
-    %0 %0
-
-:SystemBoot
     %0 %0
 
 :image_handle

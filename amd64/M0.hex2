@@ -921,7 +921,7 @@
 
 
 # fputc function
-# receives CHAR in RAX and FILE* in R14
+# receives CHAR in RAX
 # writes char and returns
 :fputc
     51                    ; push_rcx                           # Protect RCX
@@ -1020,9 +1020,6 @@
     00000000 00000000
 
 :rootdir
-    00000000 00000000
-
-:SystemBoot
     00000000 00000000
 
 :image_handle

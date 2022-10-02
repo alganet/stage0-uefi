@@ -22,8 +22,7 @@
     # Register usage:
     # RAX, RSI, RDI => Temps
     # R13 => MALLOC
-    # R14 => Output_file
-    # R15 => Input_file
+    # R15 => stderr flag
 
     # Struct TYPE format: (size 56)
     # NEXT => 0
@@ -41,34 +40,98 @@
     # TYPE => 24
     # ARGS/DEPTH => 32
 
-# Where the ELF Header is going to hit
-# Simply jump to _start
-# Our main function
+# efi_main(void *image_handle, struct efi_system_table *system)
 _start:
-    pop rax                     # Get the number of arguments
-    pop rdi                     # Get the program name
-    pop rdi                     # Get the actual input name
-    mov rsi, 0                  # prepare read_only
-    mov rax, 2                  # the syscall number for open()
-    syscall                     # Now open that damn file
-    mov r15, rax                # Preserve the file pointer we were given
+    mov rbp, rsp                       # save stack pointer
+    mov [rip+image_handle], rcx        # save image_handle
+    mov [rip+system], rdx              # save system
+    mov r14, [rdx+96]                  # system->boot
 
-    pop rdi                     # Get the actual output name
-    mov rsi, 577                # Prepare file as O_WRONLY|O_CREAT|O_TRUNC
-    mov rdx, 384                # Prepare file as RW for owner only (600 in octal)
-    mov rax, 2                  # the syscall number for open()
-    syscall                     # Now open that damn file
-    cmp rax, 0                  # Check for missing output
-    jg _start_out               # Have real input
-    mov rax, 1                  # Use stdout
+    # Open Loaded Image protocol
+    mov r9, [rip+image_handle]         # arg4 = image_handle
+    lea rdx, [rip+LOADED_IMAGE_PROTOCOL] # guid = &LOADED_IMAGE_PROTOCOL
+    mov rcx, r9                        # arg1 = image_handle
+    call open_protocol                 # open protocol
+    mov rdi, rax                       # save image
 
-_start_out:
-    mov r14, rax                # Preserve the file pointer we were given
+    # Get root file system
+    mov r9, [rip+image_handle]         # arg4 = image_handle
+    lea rdx, [rip+SIMPLE_FS_PROTOCOL]  # guid = &SIMPLE_FS_PROTOCOL
+    mov rcx, [rdi+24]                  # arg1 = root_device = image->device
+    mov [rip+root_device], rcx         # save root_device
+    call open_protocol                 # open protocol
+    mov rcx, rax                       # get rootfs
 
-    mov rax, 12                 # the Syscall # for SYS_BRK
-    mov rdi, 0                  # Get current brk
-    syscall                     # Let the kernel do the work
-    mov r13, rax                # Set our malloc pointer
+    # Get root directory
+    lea rdx, [rip+rootdir]             # arg2 = &rootdir
+    sub rsp, 16                        # allocate shadow stack space for UEFI function
+    call [rcx+8]                       # rootfs->open_volume(rootfs, &rootdir)
+    add rsp, 16                        # deallocate stack
+
+    # Push command line arguments onto stack
+    mov rbx, [rdi+56]                  # options = image->load_options
+    mov rdx, rbx                       # save beginning of load_options
+    add rbx, [rdi+48]                  # go to the end of load_options
+    push 0                             # Save end of arguments (NULL) onto stack
+loop_options:
+    cmp rbx, rdx                       # Check if we are done
+    je loop_options_done               # We are done
+    sub rbx, 2                         # --options
+    mov al, [rbx]                      # *options
+    cmp al, 0x20                       # if *options != ' '
+    jne loop_options                   # then continue looping
+    mov BYTE PTR [rbx], 0              # zero it
+    add rbx, 2                         # ++options
+    push rbx                           # push another argument onto stack
+    jmp loop_options                   # next argument
+loop_options_done:
+
+    # Open file for reading
+    pop r8                             # arg3 = in
+    push 1                             # Set exit code in case of failure
+    cmp r8, 0                          # If NULL
+    je failed_input                    # then exit
+    lea rdx, [rip+fin]                 # arg2 = &fin
+    push 1                             # arg5 = EFI_FILE_READ_ONLY
+    mov r9, 1                          # arg4 = EFI_FILE_MODE_READ
+    mov rcx, [rip+rootdir]             # arg1 = rootdir
+    sub rsp, 32                        # allocate shadow stack space for UEFI function
+    call [rcx+8]                       # rootdir->open()
+    cmp rax, 0                         # If failed to open
+    jne failed_input                   # then exit
+    add rsp, 48                        # deallocate stack
+
+    # Open file for writing
+    pop r8                             # arg3 = out
+    push 1                             # Set exit code in case of failure
+    cmp r8, 0                          # If NULL
+    je failed_output                   # then exit
+    lea rdx, [rip+fout]                # arg2 = &fout
+    push 0                             # arg5 = 0
+    push 7                             # to get 0x8000000000000003 we set the rightmost 3 bits
+    pop r9                             # and then do right rotation by 1
+    ror r9                             # arg4 = EFI_FILE_MODE_CREATE| EFI_FILE_MODE_WRITE | EFI_FILE_MODE_READ
+    mov rcx, [rip+rootdir]             # arg1 = rootdir
+    sub rsp, 32                        # allocate shadow stack space for UEFI function
+    call [rcx+8]                       # rootdir->open()
+    add rsp, 48                        # deallocate stack
+
+    # Allocate ourselves 64 MiB of memory
+    mov rdx, 0x4000000                 # allocate 64 MiB of memory for malloc pool
+    call allocate_pool                 # allocate memory
+
+    mov [rip+malloc_pointer], rax      # save malloc pointer
+    mov [rip+malloc_pool], rax         # save the beginning of malloc pool
+
+    # Zero allocated memory buffer
+    add rax, 0x4000000                 # end of malloc area
+zero_loop:
+    dec rax                            # next byte
+    mov BYTE PTR [rax], 0              # zero it
+    cmp rax, [rip+malloc_pointer]      # if we are not done yet
+    jne zero_loop                      # then continue looping
+
+    mov r15, 0                         # Not writing to stderr yet
 
     call fix_types              # Resolve relative addresses in types struct to absolute
     mov rax, 0                  # HEAD = NULL
@@ -94,11 +157,44 @@ _start_out:
     lea rax, [rip+header_string5] # Our final header
     call File_Print             # Print it
 
+
 Done:
     # program completed Successfully
-    mov rdi, 0                  # All is well
-    mov rax, 0x3c               # put the exit syscall number in eax
-    syscall                     # Call it a good day
+    mov rax, 0                         # Set exit code 0
+Done_1:
+    # Free pool
+    push rax                           # save exit code
+
+    mov rcx, [rip+malloc_pool]         # arg1 = malloc_pool
+    call free_pool                     # system->boot->free_pool(malloc_pool)
+
+    mov rcx, [rip+fout]                # get fout
+    call close_file                    # close fout
+
+failed_output:
+    mov rcx, [rip+fin]                 # get fin
+    call close_file                    # close fin
+
+failed_input:
+    mov rcx, [rip+rootdir]             # get rootdir
+    call close_file                    # close rootdir
+
+    mov r8, [rip+image_handle]         # arg3 = image_handle
+    lea rdx, [rip+SIMPLE_FS_PROTOCOL]  # guid = &SIMPLE_FS_PROTOCOL
+    mov rcx, [rip+root_device]         # arg1 = root_device
+    call close_protocol                # close protocol
+
+    mov r8, [rip+image_handle]         # arg3 = image_handle
+    lea rdx, [rip+LOADED_IMAGE_PROTOCOL] # guid = &LOADED_IMAGE_PROTOCOL
+    mov rcx, r8                        # arg1 = image_handle
+    call close_protocol                # close protocol
+
+    pop rax                            # restore exit code
+
+abort: # used for debugging only
+    mov rsp, rbp                       # restore stack
+    ret                                # return to UEFI
+
 
 header_string1: .asciz "\n# Core program\n"
 header_string2: .asciz "\n:ELF_data\n"
@@ -306,20 +402,15 @@ get_token_abort:
     ret
 
 
-# Malloc isn't actually required if the program being built fits in the initial memory
-# However, it doesn't take much to add it.
-# Requires R13 to be initialized and RAX to have the number of desired bytes
+# Malloc isn't actually reserving memory here.
+# It just updates the pointer in our already reserved storage pool.
 malloc:
-    mov rdi, r13                # Using the current pointer
-    add rdi, rax                # Request the number of desired bytes
-    mov rax, 12                 # the Syscall # for SYS_BRK
-    push rcx                    # Protect rcx
-    push r11                    # Protect r11
-    syscall                     # call the Kernel
-    pop r11                     # Restore r11
-    pop rcx                     # Restore rcx
-    mov rax, r13                # Return pointer
-    mov r13, rdi                # Update pointer
+    push rbx                    # Protect RBX
+    mov rbx, [rip+malloc_pointer] # Get malloc pointer
+    xchg rax, rbx               # Put it in place
+    add rbx, rax                # Request number of desired bytes
+    mov [rip+malloc_pointer], rbx # Save malloc_pointer
+    pop rbx
     ret
 
 
@@ -533,28 +624,32 @@ fixup_label_loop:
 
 
 # fgetc function
-# Receives FILE* in R15
 # Returns -4 (EOF) or char in RAX
 fgetc:
-    mov rax, -4                 # Put EOF in rax
-    push rax                    # Assume bad (If nothing read, value will remain EOF)
-    lea rsi, [rsp]              # Get stack address
-    mov rdi, r15                # Where are we reading from
-    mov rax, 0                  # the syscall number for read
-    push rdx                    # Protect RDX
-    mov rdx,  1                 # set the size of chars we want
     push rcx                    # Protect RCX
-    push r11                    # Protect R11
-    syscall                     # call the Kernel
-    pop r11                     # Restore R11
-    pop rcx                     # Restore RCX
+    push rdx                    # Protect RDX
+
+    mov rcx, [rip+fin]          # arg1 = fin
+    push 1                      # size = 1
+    mov rdx, rsp                # arg2 = &size
+    xor esi, esi                # zero rsi
+    push rsi                    # allocate stack
+    mov r8, rsp                 # arg3 = &input
+    sub rsp, 24                 # allocate shadow stack space for UEFI function
+    call [rcx+32]               # fin->read()
+    add rsp, 24                 # deallocate stack
+    pop rax                     # save input to rax
+    pop rsi                     # save size to rsi
+
+    # If the file ended (0 bytes read) return EOF
+    cmp rsi, 0                  # if size == 0
+    jne fgetc_1
+    mov rax, -4                 # Put EOF in rax
+
+fgetc_1:
     pop rdx                     # Restore RDX
-    pop rax                     # Get either char or EOF
-    cmp rax, -4                 # Check for EOF
-    je fgetc_done               # Return as is
-    movzx rax, al               # Make it useful
-fgetc_done:
-    ret
+    pop rcx                     # Restore RCX
+    ret                         # return
 
 
 # Reverse_List function
@@ -630,23 +725,46 @@ File_Print_Done:
 
 
 # fputc function
-# receives CHAR in RAX and FILE* in R14
+# receives CHAR in RAX
 # writes char and returns
 fputc:
-    push rax                    # We are writing rax
-    lea rsi, [rsp]              # Get stack address
-    mov rdi, r14                # Write to target file
-    mov rax, 1                  # the syscall number for write
-    push rdx                    # Protect RDX
-    mov rdx, 1                  # set the size of chars we want
     push rcx                    # Protect RCX
-    push r11                    # Protect R11
-    syscall                     # call the Kernel
-    pop r11                     # Restore R11
-    pop rcx                     # Restore RCX
+    push rdx                    # Protect RDX
+
+    cmp r15, 2                  # Check if printing to system error
+    jne fputc_file              # Else print to file
+
+    # Print to stderr
+    cmp rax, '\n'               # If we have LF, we need to append CR
+    pushf                       # Protect condition
+    mov rcx, [rip+system]       # get system
+    mov rcx, [rcx+64]           # system->out (system->err doesn't print anything for some reason)
+    mov [rip+WCHAR], al         # Convert to WCHAR
+    lea rdx, [rip+WCHAR]        # arg3 = *WCHAR
+    sub rsp, 16                 # allocate shadow stack space for UEFI function
+    call [rcx+8]                # system->err->output_string(system->err, WCHAR*)
+    add rsp, 16                 # deallocate stack
+
+    popf                        # Restore condition
+    jne fputc_done              # We are done if not LF
+    mov rax, '\r'               # Carriage return
+    call fputc                  # Print it
+    jmp fputc_done              # We are done
+
+fputc_file:
+    mov rcx, [rip+fout]         # arg1 = fout
+    push 1                      # set size
+    mov rdx, rsp                # arg2 = &size
+    push rax                    # allocate stack
+    mov r8, rsp                 # arg3 = &output
+    sub rsp, 24                 # allocate shadow stack space for UEFI function
+    call [rcx+40]               # fout->write()
+    add rsp, 40                 # deallocate stack
+
+fputc_done:
     pop rdx                     # Restore RDX
-    pop rax                     # Restore stack
-    ret
+    pop rcx                     # Restore RCX
+    ret                         # return
 
 
 # program function
@@ -1950,7 +2068,7 @@ process_break_cleaned:
 
 process_break_bad:
     # Breaking badly
-    mov r14, 2                  # write to standard error
+    mov r15, 2                  # write to standard error
 #    call line_error             # Write useful debug info
     mov rax, rcx                # put S in the right place
     call File_Print             # print it
@@ -2731,7 +2849,7 @@ primary_expr_variable_global:
     jmp primary_expr_variable_done # Be done
 
 primary_expr_variable_error:
-    mov r14, 2                  # write to standard error
+    mov r15, 2                  # write to standard error
 #    call line_error             # Write useful debug info
     mov rax, rcx                # put S in the right place
     call File_Print             # print it
@@ -3186,7 +3304,7 @@ primary_expr_char_string_1: .byte 10, 0
 # Complains about the bad input
 primary_expr_failure:
 #    call line_error             # Get line of issue
-    mov r14, 2                  # write to standard error
+    mov r15, 2                  # write to standard error
     lea rax, [rip+primary_expr_failure_string_0] # Using "Received "
     call File_Print             # Print it
 
@@ -3339,7 +3457,7 @@ require_match:
 
     # Deal with bad times
 #    call line_error             # Tell user what went wrong
-    mov r14, 2                  # write to standard error
+    mov r15, 2                  # write to standard error
     mov rax, rcx                # using our message
     call File_Print             # Print it
     jmp Exit_Failure            # Abort HARD
@@ -3468,7 +3586,7 @@ escape_lookup:
 
     # Looks like we have no clue what we are doing
     # Aborting hard
-    mov r14, 2                  # write to standard error
+    mov r15, 2                  # write to standard error
     lea rax, [rip+escape_lookup_string_0] # Using "Unknown escape received: "
     call File_Print             # Print it
     mov rax, rcx                # Using C
@@ -3519,7 +3637,7 @@ char2hex:
 
 char2hex_fail:
     # Time to fail hard
-    mov r14, 2                  # write to standard error
+    mov r15, 2                  # write to standard error
     lea rax, [rip+char2hex_string_0] # Using "Tried to print non-hex number\n"
     call File_Print             # Print it
     jmp Exit_Failure            # Abort Hard
@@ -3814,7 +3932,7 @@ type_name_native:
     jne type_name_common        # We need to abort hard
 
     # Aborting hard
-    mov r14, 2                  # write to standard error
+    mov r15, 2                  # write to standard error
     lea rax, [rip+type_name_string_0] # Print header
     call File_Print             # Print it
 
@@ -4031,7 +4149,7 @@ lookup_member_iter:
     ret
 
 lookup_member_fail:
-    mov r14, 2                  # write to standard error
+    mov r15, 2                  # write to standard error
     lea rax, [rip+lookup_member_string_0] # Using "ERROR in lookup_member "
     call File_Print             # print it
 
@@ -4410,9 +4528,62 @@ numerate_string_done:
 # And aborts hard
 # Does NOT return
 Exit_Failure:
-    mov rdi, 1                  # All is wrong
-    mov rax, 0x3c               # put the exit syscall number in eax
-    syscall                     # Call it a bad day
+    mov eax, 1                  # All is wrong
+    jmp Done_1                  # Exit gracefully
+
+# rcx: file handle
+close_file:
+    push rax                    # allocate shadow stack space for UEFI function
+    call [rcx+16]               # file_handle->close(file_handle)
+    pop rax                     # deallocate stack
+    ret
+
+# rcx: handle
+# rdx: &guid
+# r9: agent_handle
+# returns interface
+open_protocol:
+    push rax                    # allocate stack for interface
+    mov r8, rsp                 # arg3 = &interface
+    push 1                      # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
+    push 0                      # arg5 = NULL
+    sub rsp, 32                 # allocate shadow stack space for UEFI function
+    call [r14+280]              # system->boot->open_protocol(handle, &guid, &interface, agent_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
+    add rsp, 48                 # deallocate stack
+    pop rax                     # get interface
+    ret
+
+# rcx: handle
+# rdx: &guid
+# r8: agent_handle
+close_protocol:
+    xor r9, r9                  # arg4 = NULL
+    sub rsp, 32                 # allocate shadow stack space for UEFI function
+    call [r14+288]              # system->boot->close_protocol(handle, &guid, agent_handle, 0)
+    add rsp, 32                 # deallocate stack
+    ret
+
+# rdx: number of bytes to allocate
+# r14: system->boot
+# returns pointer in rax
+allocate_pool:
+    push rdx                    # allocate stack for pool pointer
+    mov r8, rsp                 # arg3 = &pool
+    push 2
+    pop rcx                     # arg1 = EFI_LOADER_DATA
+    sub rsp, 24                 # allocate shadow stack space for UEFI
+    call [r14+64]               # system->boot->allocate_pool(EFI_LOADER_DATA, 2048, &pool)
+    add rsp, 24                 # deallocate stack
+    pop rax                     # get pool
+    ret
+
+# rcx: memory pool
+# r14: system->boot
+free_pool:
+    push rax                    # allocate shadow stack space for UEFI function
+    call [r14+72]               # system->boot->free_pool(pool)
+    pop rax                     # deallocate stack
+    ret
 
 # debug_list function
 # Receives struct token_list* in RAX
@@ -4420,7 +4591,7 @@ Exit_Failure:
 # Does NOT return
 debug_list:
     mov r12, rax                # Protect the list pointer
-    mov r14, 2                  # write to standard error
+    mov r15, 2                  # write to standard error
 
 debug_list_iter:
     # Header
@@ -4483,9 +4654,8 @@ debug_list_null:
     cmp r12, 0                  # Check if NULL
     jne debug_list_iter         # iterate otherwise
 
-    mov rdi, 666                # All is HELL
-    mov rax, 0x3c               # put the exit syscall number in eax
-    syscall                     # Call it a bad day
+    mov eax, 666                # All is HELL
+    jmp abort                   # Call it a bad day
 
 .data
 
@@ -4664,3 +4834,44 @@ globals_list: .quad 0
 output_list: .quad 0
 string_index: .quad 0
 strings_list: .quad 0
+
+
+# Protocol GUIDs
+LOADED_IMAGE_PROTOCOL:
+.long  0x5b1b31a1
+.short 0x9562
+.short 0x11d2
+.byte  0x8e, 0x3f, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b
+
+SIMPLE_FS_PROTOCOL:
+.long  0x0964e5b22
+.short 0x6459
+.short 0x11d2
+.byte  0x8e, 0x39, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b
+
+malloc_pool:
+.quad 0
+
+malloc_pointer:
+.quad 0
+
+fin:
+.quad 0
+
+fout:
+.quad 0
+
+rootdir:
+.quad 0
+
+system:
+.quad 0
+
+image_handle:
+.quad 0
+
+root_device:
+.quad 0
+
+WCHAR:
+.long 0               # WCHAR with null terminator
