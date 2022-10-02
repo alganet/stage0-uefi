@@ -4611,8 +4611,8 @@ enter_uefi_stack:
 exit_uefi_stack:
     mov [rip+temp_rax], rax     # save RAX
     pop rax                     # Save return address
-    mov rsp, [rip+user_stack]   # restore user stack
     mov [rip+uefi_stack], rsp   # save system stack
+    mov rsp, [rip+user_stack]   # restore user stack
     push rax                    # Restore return address
     mov rax, [rip+temp_rax]     # restore RAX
     ret
