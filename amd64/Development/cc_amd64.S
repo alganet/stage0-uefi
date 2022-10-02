@@ -116,20 +116,28 @@ loop_options_done:
     call [rcx+8]                       # rootdir->open()
     add rsp, 48                        # deallocate stack
 
-    # Allocate ourselves 64 MiB of memory
-    mov rdx, 0x4000000                 # allocate 64 MiB of memory for malloc pool
+    # Allocate ourselves 16 MiB of memory
+    mov rdx, 0x1000000                 # allocate 16 MiB of memory for malloc pool
     call allocate_pool                 # allocate memory
 
     mov [rip+malloc_pointer], rax      # save malloc pointer
     mov [rip+malloc_pool], rax         # save the beginning of malloc pool
 
     # Zero allocated memory buffer
-    add rax, 0x4000000                 # end of malloc area
+    add rax, 0x1000000                 # end of malloc area
 zero_loop:
     dec rax                            # next byte
     mov BYTE PTR [rax], 0              # zero it
     cmp rax, [rip+malloc_pointer]      # if we are not done yet
     jne zero_loop                      # then continue looping
+
+    # cc_amd64 needs quite a lot of stack space when building M2-Planet
+    # which is not guaranteed to be available on UEFI (it guarantees at least 128 KiB).
+    # Therefore we will allocate an extra space on heap and use part of it for user stack
+    mov rax, 0x400000                  # Allocate 4 MiB for user stack
+    call malloc
+    mov [rip+user_stack], rax          # Save user stack
+    call exit_uefi_stack               # Switch to user stack
 
     mov r15, 0                         # Not writing to stderr yet
 
@@ -164,6 +172,8 @@ Done:
 Done_1:
     # Free pool
     push rax                           # save exit code
+
+    call enter_uefi_stack              # Switch back to UEFI stack
 
     mov rcx, [rip+malloc_pool]         # arg1 = malloc_pool
     call free_pool                     # system->boot->free_pool(malloc_pool)
@@ -4585,6 +4595,28 @@ free_pool:
     pop rax                     # deallocate stack
     ret
 
+# Switch to uefi stack
+# does not change any other registers
+enter_uefi_stack:
+    mov [rip+temp_rax], rax     # save RAX
+    pop rax                     # Save return address
+    mov [rip+user_stack], rsp   # save user stack
+    mov rsp, [rip+uefi_stack]   # restore system stack
+    push rax                    # Restore return address
+    mov rax, [rip+temp_rax]     # restore RAX
+    ret
+
+# Switch to user stack
+# does not change any other registers
+exit_uefi_stack:
+    mov [rip+temp_rax], rax     # save RAX
+    pop rax                     # Save return address
+    mov rsp, [rip+user_stack]   # restore user stack
+    mov [rip+uefi_stack], rsp   # save system stack
+    push rax                    # Restore return address
+    mov rax, [rip+temp_rax]     # restore RAX
+    ret
+
 # debug_list function
 # Receives struct token_list* in RAX
 # Prints contents of list and exits
@@ -4853,6 +4885,15 @@ malloc_pool:
 .quad 0
 
 malloc_pointer:
+.quad 0
+
+uefi_stack:
+.quad 0
+
+user_stack:
+.quad 0
+
+temp_rax:
 .quad 0
 
 fin:
