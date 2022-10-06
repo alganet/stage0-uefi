@@ -108,8 +108,7 @@ loop_options_done:
     je failed_output                   # then exit
     lea rdx, [rip+fout]                # arg2 = &fout
     push 0                             # arg5 = 0
-    push 7                             # to get 0x8000000000000003 we set the rightmost 3 bits
-    pop r9                             # and then do right rotation by 1
+    mov r9, 7                          # to get 0x8000000000000003 we set the rightmost 3 bits and then do right rotation by 1
     ror r9                             # arg4 = EFI_FILE_MODE_CREATE| EFI_FILE_MODE_WRITE | EFI_FILE_MODE_READ
     mov rcx, [rip+rootdir]             # arg1 = rootdir
     sub rsp, 32                        # allocate shadow stack space for UEFI function
@@ -420,7 +419,7 @@ malloc:
     xchg rax, rbx               # Put it in place
     add rbx, rax                # Request number of desired bytes
     mov [rip+malloc_pointer], rbx # Save malloc_pointer
-    pop rbx
+    pop rbx                     # Restore RBX
     ret
 
 
@@ -642,7 +641,7 @@ fgetc:
     mov rcx, [rip+fin]          # arg1 = fin
     push 1                      # size = 1
     mov rdx, rsp                # arg2 = &size
-    xor esi, esi                # zero rsi
+    mov rsi, 0                  # zero rsi
     push rsi                    # allocate stack
     mov r8, rsp                 # arg3 = &input
     sub rsp, 24                 # allocate shadow stack space for UEFI function
@@ -749,7 +748,7 @@ fputc:
     pushf                       # Protect condition
     mov rcx, [rip+system]       # get system
     mov rcx, [rcx+64]           # system->out (system->err doesn't print anything for some reason)
-    mov [rip+WCHAR], al         # Convert to WCHAR
+    mov [rip+WCHAR], rax        # Convert to WCHAR
     lea rdx, [rip+WCHAR]        # arg3 = *WCHAR
     sub rsp, 16                 # allocate shadow stack space for UEFI function
     call [rcx+8]                # system->err->output_string(system->err, WCHAR*)
@@ -1122,7 +1121,7 @@ statement_if:
     jmp statement_done          # be done
 
 statement_do:
-    lea rax, [rip+do_string]    # Using "do
+    lea rax, [rip+do_string]    # Using "do"
     call match                  # IF global_token->S == "do"
     cmp rax, 0                  # then we have a do statement
     jne statement_while         # otherwise try WHILE
@@ -2037,7 +2036,7 @@ process_break_iter:
     cmp rcx, 0                  # IF (NULL == I)
     je process_break_cleaned    # We are done
 
-    cmp rcx, rbx                # IF I != break_frame
+    cmp rbx, rcx                # IF I != break_frame
     je process_break_cleaned    # We are done
 
     call emit_out               # Emit it
@@ -3763,7 +3762,7 @@ collect_regular_string:
     push rcx                    # Protect RCX
     push rdx                    # Protect RDX
     mov rdx, rax                # Protect our passed string
-    mov rax, 256                # We need 256bytes of storage
+    mov rax, 256                # We need 256 bytes of storage
     call malloc                 # Get our new pointer
     mov rcx, rax                # put it in place
     push rax                    # protect until done
@@ -3819,7 +3818,7 @@ collect_weird_string:
     push rcx                    # Protect RCX
     push rdx                    # Protect RDX
     mov rdx, rax                # Protect our passed string
-    mov rax, 512                # We need 512bytes of storage
+    mov rax, 512                # We need 512 bytes of storage
     call malloc                 # Get our new pointer
     mov rcx, rax                # put it in place
     push rax                    # protect until done
@@ -3894,8 +3893,8 @@ hex4:
     jbe hex1                    # yes
     add al,7                    # use alpha range
 hex1:
-    mov [ecx], al               # store result
-    add ecx, 1                  # next position
+    mov [rcx], al               # store result
+    add rcx, 1                  # next position
     ret
 
 
@@ -4384,11 +4383,11 @@ numerate_number:
     push rbp                    # Protect RBP
     mov rbp, rax                # Protect A
 
-    mov rax, 16                 # 16bytes
+    mov rax, 16                 # 16 bytes
     call malloc                 # Get our pointer
     push rax                    # Protect our pointer
     mov rsi, rax                # put pointer in right place
-    mov rbx, 0x3B9ACA00         # Set divisor to largest positive number that fits in 32bits
+    mov rbx, %1000000000        # Set divisor to largest positive number that fits in 32bits
 
     cmp rbp, 0                  # Deal with 0 case
     je numerate_number_ZERO     # If it is
@@ -4538,7 +4537,7 @@ numerate_string_done:
 # And aborts hard
 # Does NOT return
 Exit_Failure:
-    mov eax, 1                  # All is wrong
+    mov rax, 1                  # All is wrong
     jmp Done_1                  # Exit gracefully
 
 # rcx: file handle
@@ -4567,7 +4566,7 @@ open_protocol:
 # rdx: &guid
 # r8: agent_handle
 close_protocol:
-    xor r9, r9                  # arg4 = NULL
+    mov r9, 0                   # arg4 = NULL
     sub rsp, 32                 # allocate shadow stack space for UEFI function
     call [r14+288]              # system->boot->close_protocol(handle, &guid, agent_handle, 0)
     add rsp, 32                 # deallocate stack
@@ -4579,8 +4578,7 @@ close_protocol:
 allocate_pool:
     push rdx                    # allocate stack for pool pointer
     mov r8, rsp                 # arg3 = &pool
-    push 2
-    pop rcx                     # arg1 = EFI_LOADER_DATA
+    mov rcx, 2                  # arg1 = EFI_LOADER_DATA
     sub rsp, 24                 # allocate shadow stack space for UEFI
     call [r14+64]               # system->boot->allocate_pool(EFI_LOADER_DATA, 2048, &pool)
     add rsp, 24                 # deallocate stack
@@ -4686,7 +4684,7 @@ debug_list_null:
     cmp r12, 0                  # Check if NULL
     jne debug_list_iter         # iterate otherwise
 
-    mov eax, 666                # All is HELL
+    mov rax, 666                # All is HELL
     jmp abort                   # Call it a bad day
 
 .data

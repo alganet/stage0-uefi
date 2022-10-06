@@ -34,3 +34,10 @@ amd64\artifact\catm.efi amd64\artifact\M0.hex2 amd64\PE32-amd64.hex2 amd64\M0.he
 amd64\artifact\hex2-0.efi amd64\artifact\M0.hex2 amd64\artifact\M0.efi
 # M0 is the architecture specific version of M1 and is by design single
 # architecture only and will be replaced by the C code version of M1
+
+###################################
+# Phase-4 Build cc_amd64 from M0  #
+###################################
+amd64\artifact\M0.efi amd64\cc_amd64.M1 amd64\artifact\cc_amd64.hex2
+amd64\artifact\catm.efi amd64\artifact\cc_amd64-0.hex2 amd64\PE32-amd64.hex2 amd64\artifact\cc_amd64.hex2
+amd64\artifact\hex2-0.efi amd64\artifact\cc_amd64-0.hex2 amd64\artifact\cc_amd64.efi
