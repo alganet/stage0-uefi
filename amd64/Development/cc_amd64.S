@@ -2544,7 +2544,7 @@ ceil_log2_iter:
     jle ceil_log2_done          # Otherwise be done
 
     add rcx, 1                  # RESULT = RESULT + 1
-    shr rbx, 1                  # A = A >> 1
+    shr rbx                     # A = A >> 1
     jmp ceil_log2_iter          # Keep looping
 
 ceil_log2_done:
@@ -4387,7 +4387,7 @@ numerate_number:
     call malloc                 # Get our pointer
     push rax                    # Protect our pointer
     mov rsi, rax                # put pointer in right place
-    mov rbx, %1000000000        # Set divisor to largest positive number that fits in 32bits
+    mov rbx, 1000000000         # Set divisor to largest positive number that fits in 32bits
 
     cmp rbp, 0                  # Deal with 0 case
     je numerate_number_ZERO     # If it is

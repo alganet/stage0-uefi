@@ -51,7 +51,7 @@ F0 00                           # SizeOfOptionalHeader
 00 00 00 00                     # ImageVersion
 00 00 00 00                     # SubsystemVersion
 00 00 00 00                     # Win32VersionValue
-00 20 00 00                     # SizeOfImage
+00 00 10 00                     # SizeOfImage
 70 01 00 00                     # SizeOfHeaders
 00 00 00 00                     # CheckSum (isn't used at all)
 0A 00                           # Subsystem
