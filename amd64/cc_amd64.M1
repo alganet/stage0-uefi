@@ -4679,7 +4679,7 @@ LOAD_INTEGER
     mov_[rdx+BYTE],rbp !24                    # HEAD->INDIRECT = I
     mov_[rbp+BYTE],rdx !24                    # I->INDIRECT = HEAD
 
-    mov_rax,[rip+DWORD] %global_token         # Using global_token
+    mov_rax,[rip+DWORD] %global_types         # Using global_types
     mov_[rdx],rax                             # HEAD->NEXT = global_types
     mov_[rip+DWORD],rdx %global_types         # global_types = HEAD
 
@@ -5516,9 +5516,6 @@ ARGUMENTS address: "
 :percent
 "%"
 
-:newline
-"\n"
-
 :underline
 "_"
 
@@ -5566,7 +5563,7 @@ ARGUMENTS address: "
     NULL                                                         # OFFSET
     %type_char_double_indirect>type_char_double_indirect %0      # INDIRECT
     NULL                                                         # MEMBERS
-    %type_char_indirect>type_char_double_indirect %0             # TYPE
+    %type_char_indirect>type_char_double_indirect %0xFFFFFFFF    # TYPE
     %type_char_double_indirect_name>type_char_double_indirect %0 # NAME
 
 :type_file

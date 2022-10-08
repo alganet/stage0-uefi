@@ -4749,7 +4749,6 @@ comma: .asciz ","
 semicolon: .asciz ";"
 equal: .asciz "="
 percent: .asciz "%"
-newline: .asciz "\n"
 underline: .asciz "_"
 
 
