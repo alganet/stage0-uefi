@@ -127,8 +127,6 @@ DEFINE mov_[rax],rbx 488918
 DEFINE mov_[rax],rcx 488908
 DEFINE mov_[rbx],rax 488903
 DEFINE mov_[rdx],rax 488902
-DEFINE mov_[rax+BYTE],rbx 488958
-DEFINE mov_[rdx+BYTE],rcx 48894A
 DEFINE mov_cl,[rbx+BYTE] 8A4B
 DEFINE mov_rax,[rax+BYTE] 488B40
 DEFINE mov_rax,[rbx+BYTE] 488B43
@@ -152,6 +150,7 @@ DEFINE mov_rcx,[rip+DWORD] 488B0D
 DEFINE mov_rsp,[rip+DWORD] 488B25
 DEFINE mov_r8,[rip+DWORD] 4C8B05
 DEFINE mov_r9,[rip+DWORD] 4C8B0D
+DEFINE mov_[rax+BYTE],rbx 488958
 DEFINE mov_[rax+BYTE],rcx 488948
 DEFINE mov_[rax+BYTE],rdx 488950
 DEFINE mov_[rbp+BYTE],rax 488945
@@ -160,6 +159,7 @@ DEFINE mov_[rbp+BYTE],rsi 488975
 DEFINE mov_[rcx+BYTE],rax 488941
 DEFINE mov_[rdx+BYTE],rax 488942
 DEFINE mov_[rdx+BYTE],rbx 48895A
+DEFINE mov_[rdx+BYTE],rcx 48894A
 DEFINE mov_[rdx+BYTE],rbp 48896A
 DEFINE mov_[rdx+BYTE],rsi 488972
 DEFINE mov_[rip+DWORD],rax 488905
