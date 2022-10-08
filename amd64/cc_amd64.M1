@@ -3857,7 +3857,7 @@ LOAD_INTEGER
 
     mov_rax,[rip+DWORD] %function             # Using function
     mov_rax,[rax+BYTE] !16                    # function->S
-    call %uniqueID_out                        # Make it unique
+    call %uniqueID                            # Make it unique
     mov_rbx,rax                               # put new strings_list in place
 
     # Parse the string
