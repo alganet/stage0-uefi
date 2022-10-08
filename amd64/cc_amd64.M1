@@ -936,8 +936,8 @@ DEFINE NULL 0000000000000000
     jmp %File_Print_Loop         # Keep going
 
 :File_Print_Done
-    pop_rcx                     # Restore RCX
-    pop_rbx                     # Restore RBX
+    pop_rcx                      # Restore RCX
+    pop_rbx                      # Restore RBX
     ret
 
 
