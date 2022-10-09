@@ -1152,13 +1152,13 @@ NULL
 
     mov_rax,[rip+DWORD] %output_list          # output
     mov_rax,[rax+BYTE] !16                    # output->s
-    lea_rbx,[rip+DWORD] %declare_function_string_2 # "RETURN\n"
-    call %match                               # IF output->s == "RETURN\n"
+    lea_rbx,[rip+DWORD] %declare_function_string_2 # "ret\n"
+    call %match                               # IF output->s == "ret\n"
     cmp_rax, %0                               # If true we can skip adding it
     je %declare_function_done                 # otherwise we need to add it
 
     # Add the return to the end of a function lacking a return;
-    lea_rax,[rip+DWORD] %declare_function_string_2 # "RETURN\n"
+    lea_rax,[rip+DWORD] %declare_function_string_2 # "ret\n"
     call %emit_out                            # emit it
 
 :declare_function_done
@@ -1174,7 +1174,7 @@ NULL
 :FUNCTION_"
 
 :declare_function_string_2
-"RETURN
+"ret
 "
 
 :declare_function_string_3
@@ -1390,7 +1390,7 @@ NULL
     jne %statement_return                     # Otherwise try RETURN
 
     # Deal with GOTO statement
-    lea_rax,[rip+DWORD] %statement_string_1   # Using "JUMP %"
+    lea_rax,[rip+DWORD] %statement_string_1   # Using "jmp %"
     call %emit_out                            # emit it
 
     mov_rax,[rip+DWORD] %global_token         # Using global_token
@@ -1467,7 +1467,7 @@ NULL
 "
 
 :statement_string_1
-"JUMP %"
+"jmp %"
 
 :statement_string_2
 "
@@ -1517,17 +1517,17 @@ Missing ;
     mov_rax,[rax]                             # global_token->next
     mov_[rip+DWORD],rax %global_token         # global_token = global_token->next
 
-    lea_rax,[rip+DWORD] %recursive_statement_string_0 # Using "RETURN\n"
+    lea_rax,[rip+DWORD] %recursive_statement_string_0 # Using "ret\n"
     mov_rbx,[rip+DWORD] %output_list          # Using output
     mov_rbx,[rbx+BYTE] !16                    # output->S
-    call %match                               # IF output->S == "RETURN\n"
+    call %match                               # IF output->S == "ret\n"
     cmp_rax, %0                               # Then we can skip the clean up
     je %recursive_statement_done              # and be done
 
     # Deal with cleanup
     mov_rbx,[rip+DWORD] %function             # Using function
     mov_rbx,[rbx+BYTE] !8                     # i = function->locals
-    lea_rax,[rip+DWORD] %recursive_statement_string_1 # Using "POP_RBX\t# _recursive_statement_locals\n"
+    lea_rax,[rip+DWORD] %recursive_statement_string_1 # Using "pop_rbx\t# _recursive_statement_locals\n"
 
 :recursive_statement_locals
     cmp_rbx,rcx                               # IF frame != i
@@ -1546,11 +1546,11 @@ Missing ;
     ret
 
 :recursive_statement_string_0
-"RETURN
+"ret
 "
 
 :recursive_statement_string_1
-"POP_RBX	# _recursive_statement_locals
+"pop_rbx	# _recursive_statement_locals
 "
 
 
@@ -1581,7 +1581,7 @@ Missing ;
 
     mov_rbx,[rip+DWORD] %function             # Using function
     mov_rbx,[rbx+BYTE] !8                     # function->locals
-    lea_rax,[rip+DWORD] %return_result_string_1 # Using "POP_RBX\t# _return_result_locals\n"
+    lea_rax,[rip+DWORD] %return_result_string_1 # Using "pop_rbx\t# _return_result_locals\n"
 :return_result_locals
     cmp_rbx, %0                               # IF NULL == i
     je %return_result_done                    # Be done
@@ -1591,7 +1591,7 @@ Missing ;
     jmp %return_result_locals                 # Keep going
 
 :return_result_done
-    lea_rax,[rip+DWORD] %return_result_string_2 # Using "RETURN\n"
+    lea_rax,[rip+DWORD] %return_result_string_2 # Using "ret\n"
     call %emit_out                            # Emit it
     pop_rcx                                   # Restore RCX
     pop_rbx                                   # Restore RBX
@@ -1603,11 +1603,11 @@ MISSING ;
 "
 
 :return_result_string_1
-"POP_RBX	# _return_result_locals
+"pop_rbx	# _return_result_locals
 "
 
 :return_result_string_2
-"RETURN
+"ret
 "
 
 
@@ -1724,7 +1724,7 @@ MISSING ;
     lea_rbx,[rip+DWORD] %semicolon            # Using ";"
     call %require_match                       # Make sure we have it
 
-    lea_rax,[rip+DWORD] %collect_local_string_3 # Using "PUSH_RAX\t#"
+    lea_rax,[rip+DWORD] %collect_local_string_3 # Using "push_rax\t#"
     call %emit_out                            # emit it
 
     mov_rax,rcx                               # put A->S where it belongs
@@ -1750,7 +1750,7 @@ Missing ;
 "
 
 :collect_local_string_3
-"PUSH_RAX	#"
+"push_rax	#"
 
 
 # process_asm function
@@ -1853,7 +1853,7 @@ MISSING ;
 
     call %expression                          # Recurse to get the IF(...) part
 
-    lea_rax,[rip+DWORD] %process_if_string_2  # Using "TEST\nJUMP_EQ %ELSE_"
+    lea_rax,[rip+DWORD] %process_if_string_2  # Using "test_rax,rax\nje %ELSE_"
     call %emit_out                            # Emit it
 
     mov_rax,[rip+DWORD] %function             # Using function
@@ -1867,7 +1867,7 @@ MISSING ;
 
     call %statement                           # Recursive to get the IF(){...} part
 
-    lea_rax,[rip+DWORD] %process_if_string_4  # Using "JUMP %_END_IF_"
+    lea_rax,[rip+DWORD] %process_if_string_4  # Using "jmp %_END_IF_"
     call %emit_out                            # Emit it
 
     mov_rax,[rip+DWORD] %function             # Using function
@@ -1918,8 +1918,8 @@ MISSING (
 "
 
 :process_if_string_2
-"TEST
-JUMP_EQ %ELSE_"
+"test_rax,rax
+je %ELSE_"
 
 :process_if_string_3
 "ERROR in process_if
@@ -1927,7 +1927,7 @@ MISSING )
 "
 
 :process_if_string_4
-"JUMP %_END_IF_"
+"jmp %_END_IF_"
 
 :process_if_string_5
 ":ELSE_"
@@ -2040,7 +2040,7 @@ MISSING )
     lea_rbx,[rip+DWORD] %semicolon            # Using ";"
     call %require_match                       # Make sure we have it
 
-    lea_rax,[rip+DWORD] %process_do_string_6  # Using "TEST\nJUMP_NE %DO_"
+    lea_rax,[rip+DWORD] %process_do_string_6  # Using "test_rax,rax\njne %DO_"
     call %emit_out                            # Emit it
 
     mov_rax,[rip+DWORD] %function             # Using function
@@ -2088,8 +2088,8 @@ MISSING ;
 "
 
 :process_do_string_6
-"TEST
-JUMP_NE %DO_"
+"test_rax,rax
+jne %DO_"
 
 :process_do_string_7
 ":DO_END_"
@@ -2134,7 +2134,7 @@ JUMP_NE %DO_"
 
     call %expression                          # Deal with the WHILE (...) part
 
-    lea_rax,[rip+DWORD] %process_while_string_3 # Using "TEST\nJUMP_EQ %END_WHILE_"
+    lea_rax,[rip+DWORD] %process_while_string_3 # Using "test_rax,rax\nje %END_WHILE_"
     call %emit_out                            # Emit it
 
     mov_rax,[rip+DWORD] %function             # Using function
@@ -2155,7 +2155,7 @@ JUMP_NE %DO_"
 
     call %statement                           # Deal with the {....} part
 
-    lea_rax,[rip+DWORD] %process_while_string_6 # Using "JUMP %WHILE_"
+    lea_rax,[rip+DWORD] %process_while_string_6 # Using "jmp %WHILE_"
     call %emit_out                            # Emit it
 
     mov_rax,[rip+DWORD] %function             # Using function
@@ -2188,8 +2188,8 @@ MISSING (
 "
 
 :process_while_string_3
-"TEST
-JUMP_EQ %END_WHILE_"
+"test_rax,rax
+je %END_WHILE_"
 
 :process_while_string_4
 "# THEN_while_"
@@ -2200,7 +2200,7 @@ MISSING )
 "
 
 :process_while_string_6
-"JUMP %WHILE_"
+"jmp %WHILE_"
 
 :process_while_string_7
 ":END_WHILE_"
@@ -2268,7 +2268,7 @@ MISSING )
 
     call %expression                          # Get the FOR ( ; ... ; Part
 
-    lea_rax,[rip+DWORD] %process_for_string_5 # Using "TEST\nJUMP_EQ %FOR_END_"
+    lea_rax,[rip+DWORD] %process_for_string_5 # Using "test_rax,rax\nje %FOR_END_"
     call %emit_out                            # Emit it
 
     mov_rax,[rip+DWORD] %function             # Using function
@@ -2276,7 +2276,7 @@ MISSING )
     mov_rbx,rcx                               # Passing NUMBER_STRING
     call %uniqueID_out                        # uniqueID_out(function->s, number_string)
 
-    lea_rax,[rip+DWORD] %process_for_string_6 # Using "JUMP %FOR_THEN_"
+    lea_rax,[rip+DWORD] %process_for_string_6 # Using "jmp %FOR_THEN_"
     call %emit_out                            # Emit it
 
     mov_rax,[rip+DWORD] %function             # Using function
@@ -2296,7 +2296,7 @@ MISSING )
 
     call %expression                          # Get the FOR (;;...) part
 
-    lea_rax,[rip+DWORD] %process_for_string_9 # Using "JUMP %FOR_"
+    lea_rax,[rip+DWORD] %process_for_string_9 # Using "jmp %FOR_"
     call %emit_out                            # Emit it
 
     mov_rax,[rip+DWORD] %function             # Using function
@@ -2317,7 +2317,7 @@ MISSING )
 
     call %statement                           # Get FOR (;;) {...} part
 
-    lea_rax,[rip+DWORD] %process_for_string_12 # Using "JUMP %FOR_ITER_"
+    lea_rax,[rip+DWORD] %process_for_string_12 # Using "jmp %FOR_ITER_"
     call %emit_out                            # Emit it
 
     mov_rax,[rip+DWORD] %function             # Using function
@@ -2358,11 +2358,11 @@ MISSING ;1
 "
 
 :process_for_string_5
-"TEST
-JUMP_EQ %FOR_END_"
+"test_rax,rax
+je %FOR_END_"
 
 :process_for_string_6
-"JUMP %FOR_THEN_"
+"jmp %FOR_THEN_"
 
 :process_for_string_7
 ":FOR_ITER_"
@@ -2373,7 +2373,7 @@ MISSING ;2
 "
 
 :process_for_string_9
-"JUMP %FOR_"
+"jmp %FOR_"
 
 :process_for_string_10
 ":FOR_THEN_"
@@ -2384,7 +2384,7 @@ MISSING )
 "
 
 :process_for_string_12
-"JUMP %FOR_ITER_"
+"jmp %FOR_ITER_"
 
 :process_for_string_13
 ":FOR_END_"
@@ -2405,7 +2405,7 @@ MISSING )
     mov_rax,[rip+DWORD] %function             # Using function
     mov_rcx,[rax+BYTE] !8                     # I = function->LOCALS
     mov_rbx,[rip+DWORD] %break_frame          # Put break_frame in the right spot
-    lea_rax,[rip+DWORD] %process_break_string_1 # Using "POP_RBX\t# break_cleanup_locals\n"
+    lea_rax,[rip+DWORD] %process_break_string_1 # Using "pop_rbx\t# break_cleanup_locals\n"
 
 :process_break_iter
     cmp_rcx, %0                               # IF (NULL == I)
@@ -2423,7 +2423,7 @@ MISSING )
     mov_rax,[rax]                             # global_token->NEXT
     mov_[rip+DWORD],rax %global_token         # global_token = global_token->NEXT
 
-    lea_rax,[rip+DWORD] %process_break_string_2 # Using "JUMP %"
+    lea_rax,[rip+DWORD] %process_break_string_2 # Using "jmp %"
     call %emit_out                            # Emit it
 
     mov_rax,[rip+DWORD] %break_target_head    # Get what we are in
@@ -2465,11 +2465,11 @@ MISSING )
 "Not inside of a loop or case statement"
 
 :process_break_string_1
-"POP_RBX	# break_cleanup_locals
+"pop_rbx	# break_cleanup_locals
 "
 
 :process_break_string_2
-"JUMP %"
+"jmp %"
 
 :process_break_string_3
 "
@@ -2499,7 +2499,7 @@ Missing ;
     jne %expression_done                      # Looks like nope
 
     # Deal with possible assignment
-    lea_rcx,[rip+DWORD] %expression_string_1  # Assume "STORE_CHAR\n" by default
+    lea_rcx,[rip+DWORD] %expression_string_1  # Assume "mov_[rbx],al\n" by default
     mov_rbx,[rip+DWORD] %global_token         # Using global_token
     mov_rbx,[rbx+BYTE] !8                     # global_token->PREV
     mov_rbx,[rbx+BYTE] !16                    # global_token->PREV->S
@@ -2515,10 +2515,10 @@ Missing ;
     cmp_rax, %0                               # IF current_target->NAME == "char*"
     jne %expression_int                       # Do char anyway
 
-    jmp %expression_common                    # Looks like we have to use "STORE_CHAR\n"
+    jmp %expression_common                    # Looks like we have to use "mov_[rbx],al\n"
 
 :expression_int
-    lea_rcx,[rip+DWORD] %expression_string_0  # Use "STORE_INTEGER\n"
+    lea_rcx,[rip+DWORD] %expression_string_0  # Use "mov_[rbx],rax\n"
 
 :expression_common
     lea_rax,[rip+DWORD] %expression           # Passing expression
@@ -2534,11 +2534,11 @@ Missing ;
     ret
 
 :expression_string_0
-"STORE_INTEGER
+"mov_[rbx],rax
 "
 
 :expression_string_1
-"STORE_CHAR
+"mov_[rbx],al
 "
 
 
@@ -2564,31 +2564,31 @@ Missing ;
     push_rdx                                  # Protect RDX
 
     lea_rax,[rip+DWORD] %relational_expr      # Using relational_expr
-    lea_rbx,[rip+DWORD] %bitwise_expr_stub_string_0 # Using "AND_rax_rbx\n"
+    lea_rbx,[rip+DWORD] %bitwise_expr_stub_string_0 # Using "and_rax,rbx\n"
     lea_rcx,[rip+DWORD] %bitwise_and          # Using "&"
     lea_rdx,[rip+DWORD] %bitwise_expr_stub    # And recurse
     call %general_recursion                   # Hit it
 
     lea_rax,[rip+DWORD] %relational_expr      # Using relational_expr
-    lea_rbx,[rip+DWORD] %bitwise_expr_stub_string_0 # Using "AND_rax_rbx\n"
+    lea_rbx,[rip+DWORD] %bitwise_expr_stub_string_0 # Using "and_rax,rbx\n"
     lea_rcx,[rip+DWORD] %logical_and          # Using "&&"
     lea_rdx,[rip+DWORD] %bitwise_expr_stub    # And recurse
     call %general_recursion                   # Hit it
 
     lea_rax,[rip+DWORD] %relational_expr      # Using relational_expr
-    lea_rbx,[rip+DWORD] %bitwise_expr_stub_string_1 # Using "OR_rax_rbx\n"
+    lea_rbx,[rip+DWORD] %bitwise_expr_stub_string_1 # Using "or_rax,rbx\n"
     lea_rcx,[rip+DWORD] %bitwise_or           # Using "|"
     lea_rdx,[rip+DWORD] %bitwise_expr_stub    # And recurse
     call %general_recursion                   # Hit it
 
     lea_rax,[rip+DWORD] %relational_expr      # Using relational_expr
-    lea_rbx,[rip+DWORD] %bitwise_expr_stub_string_1 # Using "OR_rax_rbx\n"
+    lea_rbx,[rip+DWORD] %bitwise_expr_stub_string_1 # Using "or_rax,rbx\n"
     lea_rcx,[rip+DWORD] %logical_or           # Using "||"
     lea_rdx,[rip+DWORD] %bitwise_expr_stub    # And recurse
     call %general_recursion                   # Hit it
 
     lea_rax,[rip+DWORD] %relational_expr      # Using relational_expr
-    lea_rbx,[rip+DWORD] %bitwise_expr_stub_string_2 # Using "XOR_rbx_rax_into_rax\n"
+    lea_rbx,[rip+DWORD] %bitwise_expr_stub_string_2 # Using "xor_rax,rbx\n"
     lea_rcx,[rip+DWORD] %bitwise_xor          # Using "^"
     lea_rdx,[rip+DWORD] %bitwise_expr_stub    # And recurse
     call %general_recursion                   # Hit it
@@ -2599,15 +2599,15 @@ Missing ;
     ret
 
 :bitwise_expr_stub_string_0
-"AND_rax_rbx
+"and_rax,rbx
 "
 
 :bitwise_expr_stub_string_1
-"OR_rax_rbx
+"or_rax,rbx
 "
 
 :bitwise_expr_stub_string_2
-"XOR_rbx_rax_into_rax
+"xor_rax,rbx
 "
 
 
@@ -2633,37 +2633,37 @@ Missing ;
     push_rdx                                  # Protect RDX
 
     lea_rax,[rip+DWORD] %additive_expr        # Using additive_expr
-    lea_rbx,[rip+DWORD] %relational_expr_stub_string_0 # Using "CMP\nSETL\nMOVEZX\n"
+    lea_rbx,[rip+DWORD] %relational_expr_stub_string_0 # Using "cmp_rbx,rax\nsetl_al\nmovzx_rax,al\n"
     lea_rcx,[rip+DWORD] %less_than_string     # Using "<"
     lea_rdx,[rip+DWORD] %relational_expr_stub # And recurse
     call %general_recursion                   # Hit it
 
     lea_rax,[rip+DWORD] %additive_expr        # Using additive_expr
-    lea_rbx,[rip+DWORD] %relational_expr_stub_string_1 # Using "CMP\nSETLE\nMOVEZX\n"
+    lea_rbx,[rip+DWORD] %relational_expr_stub_string_1 # Using "cmp_rbx,rax\nsetle_al\nmovzx_rax,al\n"
     lea_rcx,[rip+DWORD] %less_than_equal_string # Using "<="
     lea_rdx,[rip+DWORD] %relational_expr_stub # And recurse
     call %general_recursion                   # Hit it
 
     lea_rax,[rip+DWORD] %additive_expr        # Using additive_expr
-    lea_rbx,[rip+DWORD] %relational_expr_stub_string_2 # Using "CMP\nSETGE\nMOVEZX\n"
+    lea_rbx,[rip+DWORD] %relational_expr_stub_string_2 # Using "cmp_rbx,rax\nsetge_al\nmovzx_rax,al\n"
     lea_rcx,[rip+DWORD] %greater_than_equal_string # Using ">="
     lea_rdx,[rip+DWORD] %relational_expr_stub # And recurse
     call %general_recursion                   # Hit it
 
     lea_rax,[rip+DWORD] %additive_expr        # Using additive_expr
-    lea_rbx,[rip+DWORD] %relational_expr_stub_string_3 # Using "CMP\nSETG\nMOVEZX\n"
+    lea_rbx,[rip+DWORD] %relational_expr_stub_string_3 # Using "cmp_rbx,rax\nsetg_al\nmovzx_rax,al\n"
     lea_rcx,[rip+DWORD] %greater_than_string  # Using ">"
     lea_rdx,[rip+DWORD] %relational_expr_stub # And recurse
     call %general_recursion                   # Hit it
 
     lea_rax,[rip+DWORD] %additive_expr        # Using additive_expr
-    lea_rbx,[rip+DWORD] %relational_expr_stub_string_4 # Using "CMP\nSETE\nMOVEZX\n"
+    lea_rbx,[rip+DWORD] %relational_expr_stub_string_4 # Using "cmp_rbx,rax\nsete_al\nmovzx_rax,al\n"
     lea_rcx,[rip+DWORD] %equal_to_string      # Using "=="
     lea_rdx,[rip+DWORD] %relational_expr_stub # And recurse
     call %general_recursion                   # Hit it
 
     lea_rax,[rip+DWORD] %additive_expr        # Using additive_expr
-    lea_rbx,[rip+DWORD] %relational_expr_stub_string_5 # Using "CMP\nSETNE\nMOVEZX\n"
+    lea_rbx,[rip+DWORD] %relational_expr_stub_string_5 # Using "cmp_rbx,rax\nsetne_al\nmovzx_rax,al\n"
     lea_rcx,[rip+DWORD] %not_equal_string     # Using "!="
     lea_rdx,[rip+DWORD] %relational_expr_stub # And recurse
     call %general_recursion                   # Hit it
@@ -2674,39 +2674,39 @@ Missing ;
     ret
 
 :relational_expr_stub_string_0
-"CMP
-SETL
-MOVEZX
+"cmp_rbx,rax
+setl_al
+movzx_rax,al
 "
 
 :relational_expr_stub_string_1
-"CMP
-SETLE
-MOVEZX
+"cmp_rbx,rax
+setle_al
+movzx_rax,al
 "
 
 :relational_expr_stub_string_2
-"CMP
-SETGE
-MOVEZX
+"cmp_rbx,rax
+setge_al
+movzx_rax,al
 "
 
 :relational_expr_stub_string_3
-"CMP
-SETG
-MOVEZX
+"cmp_rbx,rax
+setg_al
+movzx_rax,al
 "
 
 :relational_expr_stub_string_4
-"CMP
-SETE
-MOVEZX
+"cmp_rbx,rax
+sete_al
+movzx_rax,al
 "
 
 :relational_expr_stub_string_5
-"CMP
-SETNE
-MOVEZX
+"cmp_rbx,rax
+setne_al
+movzx_rax,al
 "
 
 
@@ -2732,43 +2732,43 @@ MOVEZX
     push_rdx                                  # Protect RDX
 
     lea_rax,[rip+DWORD] %postfix_expr         # Using postfix_expr
-    lea_rbx,[rip+DWORD] %additive_expr_stub_string_0 # Using "ADD_rbx_to_rax\n"
+    lea_rbx,[rip+DWORD] %additive_expr_stub_string_0 # Using "add_rax,rbx\n"
     lea_rcx,[rip+DWORD] %plus_string          # Using "+"
     lea_rdx,[rip+DWORD] %additive_expr_stub   # And recurse
     call %general_recursion                   # Hit it
 
     lea_rax,[rip+DWORD] %postfix_expr         # Using postfix_expr
-    lea_rbx,[rip+DWORD] %additive_expr_stub_string_1 # Using "SUBTRACT_rax_from_rbx_into_rbx\nMOVE_rbx_to_rax\n"
+    lea_rbx,[rip+DWORD] %additive_expr_stub_string_1 # Using "sub_rbx,rax\nmov_rax,rbx\n"
     lea_rcx,[rip+DWORD] %minus_string         # Using "-"
     lea_rdx,[rip+DWORD] %additive_expr_stub   # And recurse
     call %general_recursion                   # Hit it
 
     lea_rax,[rip+DWORD] %postfix_expr         # Using postfix_expr
-    lea_rbx,[rip+DWORD] %additive_expr_stub_string_2 # Using "MULTIPLY_rax_by_rbx_into_rax\n"
+    lea_rbx,[rip+DWORD] %additive_expr_stub_string_2 # Using "mul_rbx\n"
     lea_rcx,[rip+DWORD] %multiply_string      # Using "*"
     lea_rdx,[rip+DWORD] %additive_expr_stub   # And recurse
     call %general_recursion                   # Hit it
 
     lea_rax,[rip+DWORD] %postfix_expr         # Using postfix_expr
-    lea_rbx,[rip+DWORD] %additive_expr_stub_string_3 # Using "XCHG_rax_rbx\nLOAD_IMMEDIATE_rdx %0\nDIVIDE_rax_by_rbx_into_rax\n"
+    lea_rbx,[rip+DWORD] %additive_expr_stub_string_3 # Using "xchg_rbx,rax\nmov_rdx, %0\ndiv_rbx\n"
     lea_rcx,[rip+DWORD] %divide_string        # Using "/"
     lea_rdx,[rip+DWORD] %additive_expr_stub   # And recurse
     call %general_recursion                   # Hit it
 
     lea_rax,[rip+DWORD] %postfix_expr         # Using postfix_expr
-    lea_rbx,[rip+DWORD] %additive_expr_stub_string_4 # Using "XCHG_rax_rbx\nLOAD_IMMEDIATE_rdx %0\nMODULUS_rax_from_rbx_into_rbx\nMOVE_rdx_to_rax\n"
+    lea_rbx,[rip+DWORD] %additive_expr_stub_string_4 # Using "xchg_rbx,rax\nmov_rdx, %0\ndiv_rbx\nmov_rax,rdx\n"
     lea_rcx,[rip+DWORD] %modulus_string       # Using "%"
     lea_rdx,[rip+DWORD] %additive_expr_stub   # And recurse
     call %general_recursion                   # Hit it
 
     lea_rax,[rip+DWORD] %postfix_expr         # Using postfix_expr
-    lea_rbx,[rip+DWORD] %additive_expr_stub_string_5 # Using "COPY_rax_to_rcx\nCOPY_rbx_to_rax\nSAL_rax_cl\n"
+    lea_rbx,[rip+DWORD] %additive_expr_stub_string_5 # Using "mov_rcx,rax\nmov_rax,rbx\nsal_rax,cl\n"
     lea_rcx,[rip+DWORD] %left_shift_string    # Using "<<"
     lea_rdx,[rip+DWORD] %additive_expr_stub   # And recurse
     call %general_recursion                   # Hit it
 
     lea_rax,[rip+DWORD] %postfix_expr         # Using postfix_expr
-    lea_rbx,[rip+DWORD] %additive_expr_stub_string_6 # Using "COPY_rax_to_rcx\nCOPY_rbx_to_rax\nSAR_rax_cl\n"
+    lea_rbx,[rip+DWORD] %additive_expr_stub_string_6 # Using "mov_rcx,rax\nmov_rax,rbx\nsar_rax,cl\n"
     lea_rcx,[rip+DWORD] %right_shift_string   # Using ">>"
     lea_rdx,[rip+DWORD] %additive_expr_stub   # And recurse
     call %general_recursion                   # Hit it
@@ -2779,41 +2779,41 @@ MOVEZX
     ret
 
 :additive_expr_stub_string_0
-"ADD_rbx_to_rax
+"add_rax,rbx
 "
 
 :additive_expr_stub_string_1
-"SUBTRACT_rax_from_rbx_into_rbx
-MOVE_rbx_to_rax
+"sub_rbx,rax
+mov_rax,rbx
 "
 
 :additive_expr_stub_string_2
-"MULTIPLY_rax_by_rbx_into_rax
+"mul_rbx
 "
 
 :additive_expr_stub_string_3
-"XCHG_rax_rbx
-LOAD_IMMEDIATE_rdx %0
-DIVIDE_rax_by_rbx_into_rax
+"xchg_rbx,rax
+mov_rdx, %0
+div_rbx
 "
 
 :additive_expr_stub_string_4
-"XCHG_rax_rbx
-LOAD_IMMEDIATE_rdx %0
-MODULUS_rax_from_rbx_into_rbx
-MOVE_rdx_to_rax
+"xchg_rbx,rax
+mov_rdx, %0
+div_rbx
+mov_rax,rdx
 "
 
 :additive_expr_stub_string_5
-"COPY_rax_to_rcx
-COPY_rbx_to_rax
-SAL_rax_cl
+"mov_rcx,rax
+mov_rax,rbx
+sal_rax,cl
 "
 
 :additive_expr_stub_string_6
-"COPY_rax_to_rcx
-COPY_rbx_to_rax
-SAR_rax_cl
+"mov_rcx,rax
+mov_rax,rbx
+sar_rax,cl
 "
 
 
@@ -2883,7 +2883,7 @@ SAR_rax_cl
     lea_rbx,[rip+DWORD] %close_paren          # Using ")"
     call %require_match                       # Make sure we have it
 
-    lea_rax,[rip+DWORD] %unary_expr_sizeof_string_2 # Using "LOAD_IMMEDIATE_rax %"
+    lea_rax,[rip+DWORD] %unary_expr_sizeof_string_2 # Using "mov_rax, %"
     call %emit_out                            # Emit it
 
     mov_rax,rcx                               # Put A->SIZE in the right place
@@ -2908,7 +2908,7 @@ Missing )
 "
 
 :unary_expr_sizeof_string_2
-"LOAD_IMMEDIATE_rax %"
+"mov_rax, %"
 
 :unary_expr_sizeof_string_3
 "
@@ -2931,7 +2931,7 @@ Missing )
     pop_rbx                                   # Restore array
     mov_[rip+DWORD],rbx %current_target       # current_target = ARRAY
 
-    lea_rcx,[rip+DWORD] %postfix_expr_array_string_0 # ASSIGN = "LOAD_INTEGER\n"
+    lea_rcx,[rip+DWORD] %postfix_expr_array_string_0 # ASSIGN = "mov_rax,[rax]\n"
 
     lea_rax,[rip+DWORD] %type_char_indirect_name # Using "char*"
     mov_rbx,[rbx+BYTE] !48                    # current_target->NAME
@@ -2940,12 +2940,12 @@ Missing )
     jne %postfix_expr_array_large             # Otherwise adjust
 
     # Deal with loading byte
-    lea_rcx,[rip+DWORD] %postfix_expr_array_string_1 # ASSIGN = "LOAD_BYTE\n"
+    lea_rcx,[rip+DWORD] %postfix_expr_array_string_1 # ASSIGN = "movsx_rax,BYTE_PTR_[rax]\n"
     jmp %postfix_expr_array_common            # Do the next bit
 
 :postfix_expr_array_large
     # deal with arrays made of things other than chars
-    lea_rax,[rip+DWORD] %postfix_expr_array_string_2 # Using "SAL_rax_Immediate8 !"
+    lea_rax,[rip+DWORD] %postfix_expr_array_string_2 # Using "sal_rax, !"
     call %emit_out                            # Emit it
 
     mov_rax,[rip+DWORD] %current_target       # Using current_target
@@ -2959,7 +2959,7 @@ Missing )
     call %emit_out                            # Emit it
 
 :postfix_expr_array_common
-    lea_rax,[rip+DWORD] %postfix_expr_array_string_4 # Using "ADD_rbx_to_rax\n"
+    lea_rax,[rip+DWORD] %postfix_expr_array_string_4 # Using "add_rax,rbx\n"
     call %emit_out                            # Emit it
 
     lea_rax,[rip+DWORD] %postfix_expr_array_string_5 # Using "ERROR in postfix_expr\nMissing ]\n"
@@ -2985,22 +2985,22 @@ Missing )
     ret
 
 :postfix_expr_array_string_0
-"LOAD_INTEGER
+"mov_rax,[rax]
 "
 
 :postfix_expr_array_string_1
-"LOAD_BYTE
+"movsx_rax,BYTE_PTR_[rax]
 "
 
 :postfix_expr_array_string_2
-"SAL_rax_Immediate8 !"
+"sal_rax, !"
 
 :postfix_expr_array_string_3
 "
 "
 
 :postfix_expr_array_string_4
-"ADD_rbx_to_rax
+"add_rax,rbx
 "
 
 :postfix_expr_array_string_5
@@ -3076,14 +3076,14 @@ Missing ]
     je %postfix_expr_arrow_first              # Then we don't need to do an offset
 
     # Deal with needing an offset
-    lea_rax,[rip+DWORD] %postfix_expr_arrow_string_1 # Using "# -> offset calculation\nLOAD_IMMEDIATE_rbx %"
+    lea_rax,[rip+DWORD] %postfix_expr_arrow_string_1 # Using "# -> offset calculation\nmov_rbx, %"
     call %emit_out                            # Emit it
 
     mov_rax,[rbx+BYTE] !16                    # I->OFFSET
     call %numerate_number                     # Convert to string
     call %emit_out                            # Emit it
 
-    lea_rax,[rip+DWORD] %postfix_expr_arrow_string_2 # Using "\nADD_rbx_to_rax\n"
+    lea_rax,[rip+DWORD] %postfix_expr_arrow_string_2 # Using "\nadd_rax,rbx\n"
     call %emit_out                            # Emit it
 
 :postfix_expr_arrow_first
@@ -3100,7 +3100,7 @@ Missing ]
     je %postfix_expr_arrow_done               # Be done
 
     # Deal with load case
-    lea_rax,[rip+DWORD] %postfix_expr_arrow_string_3 # Using "LOAD_INTEGER\n"
+    lea_rax,[rip+DWORD] %postfix_expr_arrow_string_3 # Using "mov_rax,[rax]\n"
     call %emit_out                            # Emit it
 
 :postfix_expr_arrow_done
@@ -3113,15 +3113,15 @@ Missing ]
 
 :postfix_expr_arrow_string_1
 "# -> offset calculation
-LOAD_IMMEDIATE_rbx %"
+mov_rbx, %"
 
 :postfix_expr_arrow_string_2
 "
-ADD_rbx_to_rax
+add_rax,rbx
 "
 
 :postfix_expr_arrow_string_3
-"LOAD_INTEGER
+"mov_rax,[rax]
 "
 
 
@@ -3151,13 +3151,13 @@ ADD_rbx_to_rax
     jne %primary_expr_not                     # Otherwise try logical NOT
 
     # Deal with negative numbers
-    lea_rax,[rip+DWORD] %primary_expr_string_0 # Using "LOAD_IMMEDIATE_rax %0\n"
+    lea_rax,[rip+DWORD] %primary_expr_string_0 # Using "mov_rax, %0\n"
     call %emit_out                            # Emit it
 
     lea_rax,[rip+DWORD] %postfix_expr         # Passing postfix_expr
     call %common_recursion                    # Get what it is notting
 
-    lea_rax,[rip+DWORD] %primary_expr_string_1 # Using "SUBTRACT_rax_from_rbx_into_rbx\nMOVE_rbx_to_rax\n"
+    lea_rax,[rip+DWORD] %primary_expr_string_1 # Using "sub_rbx,rax\nmov_rax,rbx\n"
     call %emit_out                            # Emit it
     jmp %primary_expr_done                    # Be done
 
@@ -3170,13 +3170,13 @@ ADD_rbx_to_rax
     jne %primary_expr_bin                     # Otherwise try '~'
 
     # Deal with logical not
-    lea_rax,[rip+DWORD] %primary_expr_string_2 # Using "LOAD_IMMEDIATE_rax %1\n"
+    lea_rax,[rip+DWORD] %primary_expr_string_2 # Using "mov_rax, %1\n"
     call %emit_out                            # Emit it
 
     lea_rax,[rip+DWORD] %postfix_expr         # Passing postfix_expr
     call %common_recursion                    # Get what it is notting
 
-    lea_rax,[rip+DWORD] %primary_expr_string_3 # Using "XOR_rbx_rax_into_rax\n"
+    lea_rax,[rip+DWORD] %primary_expr_string_3 # Using "xor_rax,rbx\n"
     call %emit_out                            # Emit it
     jmp %primary_expr_done                    # Be done
 
@@ -3191,7 +3191,7 @@ ADD_rbx_to_rax
     # Deal with binary NOT
     lea_rax,[rip+DWORD] %postfix_expr         # Passing postfix_expr
     call %common_recursion                    # Get what it is notting
-    lea_rax,[rip+DWORD] %primary_expr_string_4 # Using "NOT_rax\n"
+    lea_rax,[rip+DWORD] %primary_expr_string_4 # Using "not_rax\n"
     call %emit_out                            # Emit it
     jmp %primary_expr_done                    # Be done
 
@@ -3274,24 +3274,24 @@ ADD_rbx_to_rax
     ret
 
 :primary_expr_string_0
-"LOAD_IMMEDIATE_rax %0
+"mov_rax, %0
 "
 
 :primary_expr_string_1
-"SUBTRACT_rax_from_rbx_into_rbx
-MOVE_rbx_to_rax
+"sub_rbx,rax
+mov_rax,rbx
 "
 
 :primary_expr_string_2
-"LOAD_IMMEDIATE_rax %1
+"mov_rax, %1
 "
 
 :primary_expr_string_3
-"XOR_rbx_rax_into_rax
+"xor_rax,rbx
 "
 
 :primary_expr_string_4
-"NOT_rax
+"not_rax
 "
 
 :primary_expr_string_5
@@ -3327,7 +3327,7 @@ Didn't get )
 
     # Deal with constant load
     mov_rbx,[rax+BYTE] !32                    # a->ARGS
-    lea_rax,[rip+DWORD] %primary_expr_variable_string_2 # Using "LOAD_IMMEDIATE_rax %"
+    lea_rax,[rip+DWORD] %primary_expr_variable_string_2 # Using "mov_rax, %"
     call %emit_out                            # Emit it
 
     mov_rax,[rbx+BYTE] !16                    # a->ARGS->S
@@ -3407,7 +3407,7 @@ Didn't get )
 "
 
 :primary_expr_variable_string_2
-"LOAD_IMMEDIATE_rax %"
+"mov_rax, %"
 
 
 # function_call function
@@ -3427,13 +3427,13 @@ Didn't get )
     lea_rbx,[rip+DWORD] %open_paren           # Using "("
     call %require_match                       # Make sure we have it
 
-    lea_rax,[rip+DWORD] %function_call_string_1 # Using "PUSH_RDI\t# Prevent overwriting in recursion\n"
+    lea_rax,[rip+DWORD] %function_call_string_1 # Using "push_rdi\t# Prevent overwriting in recursion\n"
     call %emit_out                            # Emit it
 
-    lea_rax,[rip+DWORD] %function_call_string_2 # Using "PUSH_RBP\t# Protect the old base pointer\n"
+    lea_rax,[rip+DWORD] %function_call_string_2 # Using "push_rbp\t# Protect the old base pointer\n"
     call %emit_out                            # Emit it
 
-    lea_rax,[rip+DWORD] %function_call_string_3 # Using "COPY_RSP_to_RDI\t# Copy new base pointer\n"
+    lea_rax,[rip+DWORD] %function_call_string_3 # Using "mov_rdi,rsp\t# Copy new base pointer\n"
     call %emit_out                            # Emit it
 
     mov_rax,[rip+DWORD] %global_token         # Using global_token
@@ -3446,7 +3446,7 @@ Didn't get )
     # looks like we have arguments to collect
     call %expression                          # Collect the argument
 
-    lea_rax,[rip+DWORD] %function_call_string_4 # Using "PUSH_RAX\t#_process_expression1\n"
+    lea_rax,[rip+DWORD] %function_call_string_4 # Using "push_rax\t#_process_expression1\n"
     call %emit_out                            # Emit it
     mov_rsi, %1                               # PASSED = 1
 
@@ -3464,7 +3464,7 @@ Didn't get )
 
     call %expression                          # Collect the argument
 
-    lea_rax,[rip+DWORD] %function_call_string_5 # Using "PUSH_RAX\t#_process_expression2\n"
+    lea_rax,[rip+DWORD] %function_call_string_5 # Using "push_rax\t#_process_expression2\n"
     call %emit_out                            # Emit it
     add_rsi, %1                               # PASSED = PASSED + 1
     jmp %function_call_gen_iter               # Keep trying
@@ -3479,30 +3479,30 @@ Didn't get )
     jne %function_call_static                 # Otherwise it is a static call
 
     # Deal with a passed function pointer
-    lea_rax,[rip+DWORD] %function_call_string_7 # Using "LOAD_BASE_ADDRESS_rax %"
+    lea_rax,[rip+DWORD] %function_call_string_7 # Using "lea_rax,[rbp+DWORD] %"
     call %emit_out                            # Emit it
 
     mov_rax,rcx                               # Using S
     call %emit_out                            # Emit it
 
-    lea_rax,[rip+DWORD] %function_call_string_8 # Using "\nLOAD_INTEGER\n"
+    lea_rax,[rip+DWORD] %function_call_string_8 # Using "\nmov_rax,[rax]\n"
     call %emit_out                            # Emit it
 
-    lea_rax,[rip+DWORD] %function_call_string_9 # Using "COPY_rdi_to_rbp\n"
+    lea_rax,[rip+DWORD] %function_call_string_9 # Using "mov_rbp,rdi\n"
     call %emit_out                            # Emit it
 
-    lea_rax,[rip+DWORD] %function_call_string_10 # Using "CALL_rax\n"
+    lea_rax,[rip+DWORD] %function_call_string_10 # Using "call_rax\n"
     call %emit_out                            # Emit it
 
-    lea_rax,[rip+DWORD] %function_call_string_13 # Using "POP_RBX\t# _process_expression_locals\n"
+    lea_rax,[rip+DWORD] %function_call_string_13 # Using "pop_rbx\t# _process_expression_locals\n"
     jmp %function_call_cleanup                # Clean up
 
 :function_call_static
     # Deal with fixed function name
-    lea_rax,[rip+DWORD] %function_call_string_9 # Using "COPY_rdi_to_rbp\n"
+    lea_rax,[rip+DWORD] %function_call_string_9 # Using "mov_rbp,rdi\n"
     call %emit_out                            # Emit it
 
-    lea_rax,[rip+DWORD] %function_call_string_11 # Using "CALL_IMMEDIATE %FUNCTION_"
+    lea_rax,[rip+DWORD] %function_call_string_11 # Using "call %FUNCTION_"
     call %emit_out                            # Emit it
 
     mov_rax,rcx                               # Using S
@@ -3511,7 +3511,7 @@ Didn't get )
     lea_rax,[rip+DWORD] %function_call_string_12 # Using "\n"
     call %emit_out                            # Emit it
 
-    lea_rax,[rip+DWORD] %function_call_string_13 # Using "POP_RBX\t# _process_expression_locals\n"
+    lea_rax,[rip+DWORD] %function_call_string_13 # Using "pop_rbx\t# _process_expression_locals\n"
 
 :function_call_cleanup
     cmp_rsi, %0                               # IF PASSED > 0
@@ -3542,23 +3542,23 @@ No ( was found
 "
 
 :function_call_string_1
-"PUSH_RDI	# Prevent overwriting in recursion
+"push_rdi	# Prevent overwriting in recursion
 "
 
 :function_call_string_2
-"PUSH_RBP	# Protect the old base pointer
+"push_rbp	# Protect the old base pointer
 "
 
 :function_call_string_3
-"COPY_RSP_to_RDI	# Copy new base pointer
+"mov_rdi,rsp	# Copy new base pointer
 "
 
 :function_call_string_4
-"PUSH_RAX	#_process_expression1
+"push_rax	#_process_expression1
 "
 
 :function_call_string_5
-"PUSH_RAX	#_process_expression2
+"push_rax	#_process_expression2
 "
 
 :function_call_string_6
@@ -3567,38 +3567,38 @@ No ) was found
 "
 
 :function_call_string_7
-"LOAD_BASE_ADDRESS_rax %"
+"lea_rax,[rbp+DWORD] %"
 
 :function_call_string_8
 "
-LOAD_INTEGER
+mov_rax,[rax]
 "
 
 :function_call_string_9
-"COPY_rdi_to_rbp
+"mov_rbp,rdi
 "
 
 :function_call_string_10
-"CALL_rax
+"call_rax
 "
 
 :function_call_string_11
-"CALL_IMMEDIATE %FUNCTION_"
+"call %FUNCTION_"
 
 :function_call_string_12
 "
 "
 
 :function_call_string_13
-"POP_RBX	# _process_expression_locals
+"pop_rbx	# _process_expression_locals
 "
 
 :function_call_string_14
-"POP_RBP	# Restore old base pointer
+"pop_rbp	# Restore old base pointer
 "
 
 :function_call_string_15
-"POP_RDI	# Prevent overwrite
+"pop_rdi	# Prevent overwrite
 "
 
 
@@ -3637,7 +3637,7 @@ LOAD_INTEGER
     mov_rax,[rcx+BYTE] !24                    # A->TYPE
     mov_[rip+DWORD],rax %current_target       # current_target = A->TYPE
 
-    lea_rax,[rip+DWORD] %variable_load_string_0 # Using "LOAD_BASE_ADDRESS_rax %"
+    lea_rax,[rip+DWORD] %variable_load_string_0 # Using "lea_rax,[rbp+DWORD] %"
     call %emit_out                            # Emit it
 
     mov_rax,[rcx+BYTE] !32                    # A->DEPTH
@@ -3656,7 +3656,7 @@ LOAD_INTEGER
     je %variable_load_done                    # And be done
 
     # Deal with common case
-    lea_rax,[rip+DWORD] %variable_load_string_2 # Using "LOAD_INTEGER\n"
+    lea_rax,[rip+DWORD] %variable_load_string_2 # Using "mov_rax,[rax]\n"
     call %emit_out                            # Emit it
 
 :variable_load_done
@@ -3665,14 +3665,14 @@ LOAD_INTEGER
     ret
 
 :variable_load_string_0
-"LOAD_BASE_ADDRESS_rax %"
+"lea_rax,[rbp+DWORD] %"
 
 :variable_load_string_1
 "
 "
 
 :variable_load_string_2
-"LOAD_INTEGER
+"mov_rax,[rax]
 "
 
 
@@ -3699,7 +3699,7 @@ LOAD_INTEGER
     jmp %function_load_done                   # Be done
 
 :function_load_regular
-    lea_rax,[rip+DWORD] %function_load_string_0 # Using "LOAD_IMMEDIATE_rax &FUNCTION_"
+    lea_rax,[rip+DWORD] %function_load_string_0 # Using "lea_rax,[rip+DWORD] %FUNCTION_"
     call %emit_out                            # Emit it
 
     mov_rax,rcx                               # Using A->S
@@ -3714,7 +3714,7 @@ LOAD_INTEGER
     ret
 
 :function_load_string_0
-"LOAD_IMMEDIATE_rax &FUNCTION_"
+"lea_rax,[rip+DWORD] %FUNCTION_"
 
 :function_load_string_1
 "
@@ -3733,7 +3733,7 @@ LOAD_INTEGER
     mov_rax,[rax+BYTE] !24                    # A->TYPE
     mov_[rip+DWORD],rax %current_target       # current_target = A->TYPE
 
-    lea_rax,[rip+DWORD] %global_load_string_0 # Using "LOAD_IMMEDIATE_rax &GLOBAL_"
+    lea_rax,[rip+DWORD] %global_load_string_0 # Using "lea_rax,[rip+DWORD] %GLOBAL_"
     call %emit_out                            # Emit it
 
     mov_rax,rbx                               # Using A->S
@@ -3750,7 +3750,7 @@ LOAD_INTEGER
     je %global_load_done                      # and be done
 
     # Otherwise we are loading the contents
-    lea_rax,[rip+DWORD] %global_load_string_2 # Using "LOAD_INTEGER\n"
+    lea_rax,[rip+DWORD] %global_load_string_2 # Using "mov_rax,[rax]\n"
     call %emit_out                            # Emit it
 
 :global_load_done
@@ -3758,14 +3758,14 @@ LOAD_INTEGER
     ret
 
 :global_load_string_0
-"LOAD_IMMEDIATE_rax &GLOBAL_"
+"lea_rax,[rip+DWORD] %GLOBAL_"
 
 :global_load_string_1
 "
 "
 
 :global_load_string_2
-"LOAD_INTEGER
+"mov_rax,[rax]
 "
 
 
@@ -3802,7 +3802,7 @@ LOAD_INTEGER
 # Returns nothing
 # Simply uses current global token to update output and then steps to next global_token
 :primary_expr_number
-    lea_rax,[rip+DWORD] %primary_expr_number_string_0 # Using "LOAD_IMMEDIATE_rax %"
+    lea_rax,[rip+DWORD] %primary_expr_number_string_0 # Using "mov_rax, %"
     call %emit_out                            # Emit it
 
     mov_rax,[rip+DWORD] %global_token         # Using global_token
@@ -3818,7 +3818,7 @@ LOAD_INTEGER
     ret
 
 :primary_expr_number_string_0
-"LOAD_IMMEDIATE_rax %"
+"mov_rax, %"
 
 :primary_expr_number_string_1
 "
@@ -3841,7 +3841,7 @@ LOAD_INTEGER
     add_rbx, %1                               # current_count + 1
     mov_[rip+DWORD],rbx %current_count        # current_count = current_count + 1
 
-    lea_rax,[rip+DWORD] %primary_expr_string_string_0 # Using "LOAD_IMMEDIATE_rax &STRING_"
+    lea_rax,[rip+DWORD] %primary_expr_string_string_0 # Using "lea_rax,[rip+DWORD] %STRING_"
     call %emit_out                            # Emit it
 
     mov_rax,[rip+DWORD] %function             # Using function
@@ -3876,7 +3876,7 @@ LOAD_INTEGER
     ret
 
 :primary_expr_string_string_0
-"LOAD_IMMEDIATE_rax &STRING_"
+"lea_rax,[rip+DWORD] %STRING_"
 
 :primary_expr_string_string_1
 ":STRING_"
@@ -3889,7 +3889,7 @@ LOAD_INTEGER
 :primary_expr_char
     push_rbx                                  # Protect RBX
     push_rcx                                  # Protect RCX
-    lea_rax,[rip+DWORD] %primary_expr_char_string_0 # Using "LOAD_IMMEDIATE_rax %"
+    lea_rax,[rip+DWORD] %primary_expr_char_string_0 # Using "mov_rax, %"
     call %emit_out                            # Emit it
 
     mov_rax,[rip+DWORD] %global_token         # Using global_token
@@ -3910,7 +3910,7 @@ LOAD_INTEGER
     ret
 
 :primary_expr_char_string_0
-"LOAD_IMMEDIATE_rax %"
+"mov_rax, %"
 
 :primary_expr_char_string_1
 "
@@ -4041,7 +4041,7 @@ LOAD_INTEGER
 :common_recursion
     push_rbx                                  # Protect RBX
     mov_rbx,rax                               # Put FUNCTION F safely out of the way
-    lea_rax,[rip+DWORD] %common_recursion_string_0 # Using "PUSH_RAX\t#_common_recursion\n"
+    lea_rax,[rip+DWORD] %common_recursion_string_0 # Using "push_rax\t#_common_recursion\n"
     call %emit_out                            # Emit it
 
     mov_rax,[rip+DWORD] %global_token         # Using global_token
@@ -4055,17 +4055,17 @@ LOAD_INTEGER
     call %promote_type                        # get the right type
     mov_[rip+DWORD],rax %current_target       # Set new current_target
 
-    lea_rax,[rip+DWORD] %common_recursion_string_1 # Using "POP_RBX\t# _common_recursion\n"
+    lea_rax,[rip+DWORD] %common_recursion_string_1 # Using "pop_rbx\t# _common_recursion\n"
     call %emit_out                            # Emit it
     pop_rbx                                   # Restore RBX
     ret
 
 :common_recursion_string_0
-"PUSH_RAX	#_common_recursion
+"push_rax	#_common_recursion
 "
 
 :common_recursion_string_1
-"POP_RBX	# _common_recursion
+"pop_rbx	# _common_recursion
 "
 
 
