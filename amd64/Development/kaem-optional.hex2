@@ -356,7 +356,7 @@
     4C89E1          ; mov_rcx,r12                      # arg1 = fin
     6A 01           ; push !1                          # size = 1
     4889E2          ; mov_rdx,rsp                      # arg2 = &size
-    56              ; push_rsi                         # allocate stack
+    6A 00           ; push !0                          # allocate stack
     4989E0          ; mov_r8,rsp                       # arg3 = &c
     50              ; push_rax                         # allocate shadow stack space for UEFI function
     50              ; push_rax                         # allocate shadow stack space for UEFI function

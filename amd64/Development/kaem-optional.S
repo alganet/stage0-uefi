@@ -362,7 +362,7 @@ read_byte:
         mov rcx, r12                      # arg1 = fin
         push 1                            # size = 1
         mov rdx, rsp                      # arg2 = &size
-        push rsi                          # allocate stack
+        push 0                            # allocate stack
         mov r8, rsp                       # arg3 = &c
         push rax                          # allocate shadow stack space for UEFI function
         push rax                          # allocate shadow stack space for UEFI function

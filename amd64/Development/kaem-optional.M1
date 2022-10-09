@@ -87,7 +87,6 @@ DEFINE push_rax 50
 DEFINE push_rbx 53
 DEFINE push_rdi 57
 DEFINE push_rdx 52
-DEFINE push_rsi 56
 DEFINE push_rsp 54
 DEFINE push_r8 4150
 DEFINE ret C3
@@ -461,7 +460,7 @@ DEFINE xor_r15,r15 4D31FF
     mov_rcx,r12                      # arg1 = fin
     push !1                          # size = 1
     mov_rdx,rsp                      # arg2 = &size
-    push_rsi                         # allocate stack
+    push !0                          # allocate stack
     mov_r8,rsp                       # arg3 = &c
     push_rax                         # allocate shadow stack space for UEFI function
     push_rax                         # allocate shadow stack space for UEFI function
