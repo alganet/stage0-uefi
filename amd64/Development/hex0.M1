@@ -296,8 +296,7 @@ DEFINE xor_r9,r9 4D31C9
     mov_rcx,r12                 # arg1 = fin
     push !1                     # size = 1
     mov_rdx,rsp                 # arg2 = &size
-    xor_esi,esi                 # zero rsi
-    push_rsi                    # allocate stack
+    push !0                     # allocate stack
     mov_r8,rsp                  # arg3 = &input
     push_rax                    # allocate shadow stack space for UEFI function
     push_rax                    # allocate shadow stack space for UEFI function
