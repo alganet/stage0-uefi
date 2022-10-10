@@ -115,15 +115,15 @@ loop_options_done:
     call [rcx+8]                       # rootdir->open()
     add rsp, 48                        # deallocate stack
 
-    # Allocate ourselves 16 MiB of memory
-    mov rdx, 0x1000000                 # allocate 16 MiB of memory for malloc pool
+    # Allocate ourselves 64 MiB of memory
+    mov rdx, 0x4000000                 # allocate 64 MiB of memory for malloc pool
     call allocate_pool                 # allocate memory
 
     mov [rip+malloc_pointer], rax      # save malloc pointer
     mov [rip+malloc_pool], rax         # save the beginning of malloc pool
 
     # Zero allocated memory buffer
-    add rax, 0x1000000                 # end of malloc area
+    add rax, 0x4000000                 # end of malloc area
 zero_loop:
     dec rax                            # next byte
     mov BYTE PTR [rax], 0              # zero it
@@ -133,7 +133,7 @@ zero_loop:
     # cc_amd64 needs quite a lot of stack space when building M2-Planet
     # which is not guaranteed to be available on UEFI (it guarantees at least 128 KiB).
     # Therefore we will allocate an extra space on heap and use part of it for user stack
-    mov rax, 0x400000                  # Allocate 4 MiB for user stack
+    mov rax, 0x800000                  # Allocate 8 MiB for user stack
     call malloc
     mov [rip+user_stack], rax          # Save user stack
     call exit_uefi_stack               # Switch to user stack
@@ -250,7 +250,7 @@ fix_types_done:
 
 
 # read_all_tokens function
-# Receives FILE* in R15 and Token_List* in RAX
+# Receives Token_List* in RAX
 # Tokenizes all input and returns updated list in RAX
 # Returns TOKEN in RAX
 # Uses RAX for C
@@ -268,7 +268,7 @@ read_all_tokens_done:
 
 
 # get_token function
-# Receives INT in RAX and FILE* in R15
+# Receives INT in RAX
 # Makes a list of TOKEN_LIST
 # C and STRING_INDEX are stored in memory, RCX is used for S and RDX is used for current
 # Returns C in RAX
@@ -641,8 +641,7 @@ fgetc:
     mov rcx, [rip+fin]          # arg1 = fin
     push 1                      # size = 1
     mov rdx, rsp                # arg2 = &size
-    mov rsi, 0                  # zero rsi
-    push rsi                    # allocate stack
+    push 0                      # zero rsi
     mov r8, rsp                 # arg3 = &input
     sub rsp, 24                 # allocate shadow stack space for UEFI function
     call [rcx+32]               # fin->read()
