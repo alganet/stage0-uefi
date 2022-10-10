@@ -4,3 +4,9 @@
 [submodule "bootstrap-seeds"]
 	path = bootstrap-seeds
 	url = https://github.com/oriansj/bootstrap-seeds/
+[submodule "M2libc"]
+	path = M2libc
+	url = https://github.com/oriansj/M2libc
+[submodule "M2-Planet"]
+	path = M2-Planet
+	url = https://github.com/oriansj/M2-Planet
