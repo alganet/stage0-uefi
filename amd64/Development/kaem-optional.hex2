@@ -459,4 +459,4 @@
 :system_out
     00 00 00 00 00 00 00 00
 
-:PE32_end
+:ELF_end

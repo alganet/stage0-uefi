@@ -303,4 +303,4 @@ DEFINE xor_r9,r9 4D31C9
 :root_device
     %0 %0
 
-:PE32_end
+:ELF_end

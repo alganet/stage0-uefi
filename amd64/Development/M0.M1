@@ -1169,4 +1169,4 @@ DEFINE xor_r13,r13 4D31ED
 :root_device
     %0 %0
 
-:PE32_end
+:ELF_end

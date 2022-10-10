@@ -56,8 +56,8 @@ F0 00                           # SizeOfOptionalHeader
 00 00 00 00                     # sizeOfInitializedData
 00 00 00 00                     # SizeOfUninitializedData
 00 10 00 00                     # AddressOfEntryPoint
-00 10 00 00                     # BaseOfCode
-00 00 00 80 01 00 00 00         # ImageBase
+00 00 00 00                     # BaseOfCode
+00 00 00 00 00 00 00 00         # ImageBase
 01 00 00 00                     # SectionAlignment
 01 00 00 00                     # FileAlignment
 00 00 00 00                     # OperatingSystemVersion
@@ -825,4 +825,4 @@ DD 06 00 00                             ; SizeOfRawData
 :6 #:root_device
     00000000 00000000
 
-# :PE32_end
+# :ELF_end

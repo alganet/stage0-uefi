@@ -564,4 +564,4 @@ DEFINE xor_r15,r15 4D31FF
 :system_out
     %0 %0
 
-:PE32_end
+:ELF_end
