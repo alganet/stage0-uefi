@@ -41,3 +41,13 @@ amd64\artifact\hex2-0.efi amd64\artifact\M0.hex2 amd64\artifact\M0.efi
 amd64\artifact\M0.efi amd64\cc_amd64.M1 amd64\artifact\cc_amd64.hex2
 amd64\artifact\catm.efi amd64\artifact\cc_amd64-0.hex2 amd64\PE32-amd64.hex2 amd64\artifact\cc_amd64.hex2
 amd64\artifact\hex2-0.efi amd64\artifact\cc_amd64-0.hex2 amd64\artifact\cc_amd64.efi
+
+#########################################
+# Phase-5 Build M2-Planet from cc_amd64 #
+#########################################
+amd64\artifact\catm.efi amd64\artifact\M2-0.c M2libc\amd64\linux\bootstrap.c M2-Planet\cc.h M2libc\bootstrappable.c M2-Planet\cc_globals.c M2-Planet\cc_reader.c M2-Planet\cc_strings.c M2-Planet\cc_types.c M2-Planet\cc_core.c M2-Planet\cc_macro.c M2-Planet\cc.c
+amd64\artifact\cc_amd64.efi amd64\artifact\M2-0.c amd64\artifact\M2-0.M1
+amd64\artifact\catm.efi amd64\artifact\M2-0-0.M1 M2libc\amd64\amd64_defs.M1 M2libc\amd64\libc-core.M1 amd64\artifact\M2-0.M1
+amd64\artifact\M0.efi amd64\artifact\M2-0-0.M1 amd64\artifact\M2-0.hex2
+amd64\artifact\catm.efi amd64\artifact\M2-0-0.hex2 M2libc\amd64\ELF-amd64.hex2 amd64\artifact\M2-0.hex2
+amd64\artifact\hex2-0.efi amd64\artifact\M2-0-0.hex2 amd64\artifact\M2
