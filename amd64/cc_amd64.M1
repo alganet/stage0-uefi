@@ -5712,4 +5712,4 @@ ARGUMENTS address: "
 :WCHAR
     %0                 # WCHAR with null terminator
 
-:PE32_end
+:ELF_end

@@ -1028,4 +1028,4 @@
 :root_device
     00000000 00000000
 
-:PE32_end
+:ELF_end

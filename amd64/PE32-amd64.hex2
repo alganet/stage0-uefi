@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+:PE32_base
 # DOS MZ header
 4D 5A                           # Signature
 00 00                           # Number of bytes in the last page.
@@ -25,14 +26,14 @@
 40 00 00 00                     # Starting address of the PE header
 
 # [0x40]
-# PE header
+:PE_header
 50 45 00 00                     # Signature "PE"
 64 86                           # Machine
 01 00                           # number of sections
 00 00 00 00                     # Timestamp supposedly
 00 00 00 00                     # PointerToSymbolTable
 00 00 00 00                     # number of symbols
-F0 00                           # SizeOfOptionalHeader
+@OptionalHeader_end>PE_header   # SizeOfOptionalHeader
 00 00                           # 'Characteristics'
 
 # [0x58]
@@ -43,8 +44,8 @@ F0 00                           # SizeOfOptionalHeader
 00 00 00 00                     # sizeOfInitializedData
 00 00 00 00                     # SizeOfUninitializedData
 00 10 00 00                     # AddressOfEntryPoint
-00 10 00 00                     # BaseOfCode
-00 00 00 80 01 00 00 00         # ImageBase
+00 00 00 00                     # BaseOfCode
+00 00 00 00 00 00 00 00         # ImageBase
 01 00 00 00                     # SectionAlignment
 01 00 00 00                     # FileAlignment
 00 00 00 00                     # OperatingSystemVersion
@@ -52,7 +53,7 @@ F0 00                           # SizeOfOptionalHeader
 00 00 00 00                     # SubsystemVersion
 00 00 00 00                     # Win32VersionValue
 00 00 10 00                     # SizeOfImage
-70 01 00 00                     # SizeOfHeaders
+%PE32_text>PE32_base            # SizeOfHeaders
 00 00 00 00                     # CheckSum (isn't used at all)
 0A 00                           # Subsystem
 00 00                           # DllCharacteristics
@@ -110,6 +111,9 @@ F0 00                           # SizeOfOptionalHeader
 00 00 00 00                     # CLR Runtime header table
 00 00 00 00                     # Size of CLR Runtime Header table
 
+# [0x130]
+:OptionalHeader_end
+
 00 00 00 00 00 00 00 00         # MUST BE NULL
 
 # no idea what it is yet
@@ -119,9 +123,9 @@ F0 00                           # SizeOfOptionalHeader
 # [0x148]
 # Start of section headers
 2E 74 65 78 74 00 00 00                 ; Name of the section: ".text"
-%PE32_end>PE32_text                     ; VirtualSize
+%ELF_end>PE32_text                      ; VirtualSize
 00 10 00 00                             ; VirtualAddress
-%PE32_end>PE32_text                     ; SizeOfRawData
+%ELF_end>PE32_text                      ; SizeOfRawData
 70 01 00 00                             ; PointerToRawData
 00 00 00 00                             ; PointerToRelocations
 00 00 00 00                             ; PointerToLinenumbers
@@ -130,5 +134,4 @@ F0 00                           # SizeOfOptionalHeader
 00 00 00 00                             ; 'Characteristics'
 
 # [0x170]
-
 :PE32_text
