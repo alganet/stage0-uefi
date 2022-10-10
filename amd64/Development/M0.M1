@@ -238,15 +238,15 @@ DEFINE xor_r13,r13 4D31ED
     call_[rcx+BYTE] !8                 # rootdir->open()
     add_rsp, !48                       # deallocate stack
 
-    # Allocate ourselves 16 MiB of memory
-    mov_rdx, %0x1000000                # allocate 16 MiB of memory for malloc pool
+    # Allocate ourselves 32 MiB of memory
+    mov_rdx, %0x2000000                # allocate 32 MiB of memory for malloc pool
     call %allocate_pool                # allocate memory
 
     mov_r12,rax                        # save malloc pointer
     mov_[rip+DWORD],rax %malloc_pool   # save the beginning of malloc pool
 
     # Zero allocated memory buffer
-    add_rax, %0x1000000                # end of malloc area
+    add_rax, %0x2000000                # end of malloc area
 :zero_loop
     dec_rax                            # next byte
     mov_[rax],BYTE !0                  # zero it

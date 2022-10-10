@@ -100,14 +100,14 @@
     4883C4 30             ; add_rsp, !48                       # deallocate stack
 
     # Allocate ourselves 16 MiB of memory
-    48C7C2 00000001       ; mov_rdx, %0x1000000                # allocate 16 MiB of memory for malloc pool
+    48C7C2 00000002       ; mov_rdx, %0x2000000                # allocate 64 MiB of memory for malloc pool
     E8 %allocate_pool     ; call %allocate_pool                # allocate memory
 
     4989C4                ; mov_r12,rax                        # save malloc pointer
     488905 %malloc_pool   ; mov_[rip+DWORD],rax %malloc_pool   # save the beginning of malloc pool
 
     # Zero allocated memory buffer
-    4805 00000001         ; add_rax, %0x1000000                # end of malloc area
+    4805 00000002         ; add_rax, %0x2000000                # end of malloc area
 :zero_loop
     48FFC8                ; dec_rax                            # next byte
     C600 00               ; mov_[rax],BYTE !0                  # zero it

@@ -102,15 +102,15 @@ loop_options_done:
     call [rcx+8]                       # rootdir->open()
     add rsp, 48                        # deallocate stack
 
-    # Allocate ourselves 16 MiB of memory
-    mov rdx, 0x1000000                 # allocate 16 MiB of memory for malloc pool
+    # Allocate ourselves 32 MiB of memory
+    mov rdx, 0x2000000                 # allocate 32 MiB of memory for malloc pool
     call allocate_pool                 # allocate memory
 
     mov r12, rax                       # save malloc pointer
     mov [rip+malloc_pool], rax         # save the beginning of malloc pool
 
     # Zero allocated memory buffer
-    add rax, 0x1000000                 # end of malloc area
+    add rax, 0x2000000                 # end of malloc area
 zero_loop:
     dec rax                            # next byte
     mov BYTE PTR [rax], 0              # zero it
