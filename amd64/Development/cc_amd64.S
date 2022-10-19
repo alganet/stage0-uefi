@@ -135,7 +135,7 @@ zero_loop:
     # Therefore we will allocate an extra space on heap and use part of it for user stack
     mov rax, 0x800000                  # Allocate 8 MiB for user stack
     call malloc
-    mov [rip+user_stack], rax          # Save user stack
+    mov [rip+user_stack], rax          # Set user stack
     call exit_uefi_stack               # Switch to user stack
 
     mov r15, 0                         # Not writing to stderr yet
@@ -169,11 +169,10 @@ Done:
     # program completed Successfully
     mov rax, 0                         # Set exit code 0
 Done_1:
-    # Free pool
+    call enter_uefi_stack              # Switch back to UEFI stack
     push rax                           # save exit code
 
-    call enter_uefi_stack              # Switch back to UEFI stack
-
+    # Free pool
     mov rcx, [rip+malloc_pool]         # arg1 = malloc_pool
     call free_pool                     # system->boot->free_pool(malloc_pool)
 
