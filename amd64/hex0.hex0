@@ -412,7 +412,7 @@ D0 01 00 00                             ; SizeOfRawData
     8E 3F 00 A0 C9 69 72 3B ; !0x8e !0x3f !0 !0xa0 !0xc9 !0x69 !0x72 !0x3b
 
 # :SIMPLE_FS_PROTOCOL [_start+0x1C0]
-    22 5B 4E 96             ; %0x0964e5b22
+    22 5B 4E 96             ; %0x964e5b22
     59 64                   ; @0x6459
     D2 11                   ; @0x11d2
     8E 39 00 A0 C9 69 72 3B ; !0x8e !0x39 !0 !0xa0 !0xc9 !0x69 !0x72 !0x3b

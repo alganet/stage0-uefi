@@ -49,7 +49,7 @@ struct efi_file_protocol {
         uint64_t);
     efi_status_t (*close)(struct efi_file_protocol *);
 
-    void (*unused1)();
+    efi_status_t (*delete)(struct efi_file_protocol *);
 
     efi_status_t (*read)(struct efi_file_protocol *, efi_uint_t *, void *);
 
