@@ -56,8 +56,8 @@ struct efi_boot_table
 	// Image Services
 	efi_status_t (*load_image)(uint8_t, efi_handle_t, struct efi_device_path_protocol*, void *, efi_uint_t, efi_handle_t);
 	efi_status_t (*start_image)(efi_handle_t, efi_uint_t *, uint16_t);
-	void (*unused23)();
 	efi_status_t (*exit)(efi_handle_t, efi_status_t, uint16_t);
+	void (*unused23)();
 	efi_status_t (*exit_boot_services)(efi_handle_t, efi_uint_t);
 
 	// Miscellaneous Services
