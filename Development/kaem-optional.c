@@ -157,8 +157,7 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
         system->boot->free_pool(device_path);
         system->boot->free_pool(executable);
 
-        system->boot->open_protocol(child_ih, &guid1, (void **) &child_image, child_ih, 0,
-                                EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL);
+        system->boot->open_protocol(child_ih, &guid1, (void **) &child_image, child_ih, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL);
         child_image->load_options = command;
         child_image->load_options_size = 2 * (i + 1);
         child_image->device = image->device;
