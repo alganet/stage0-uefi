@@ -99,3 +99,13 @@ amd64\artifact\M2.efi --architecture amd64 -f M2libc/sys/types.h -f M2libc/stdde
 amd64\bin\M1.efi --architecture amd64 --little-endian -f M2libc/amd64/amd64_defs.M1 -f M2libc/amd64/uefi/libc-full.M1 -f amd64/artifact/hex2_linker-2.M1 -o amd64/artifact/hex2_linker-2.hex2
 
 amd64\artifact\hex2-1.efi --architecture amd64 --little-endian -f M2libc/amd64/uefi/PE32-amd64.hex2 -f amd64/artifact/hex2_linker-2.hex2 -o amd64/bin/hex2.efi
+
+######################################
+# Phase-10 Build kaem from C sources #
+######################################
+
+amd64\artifact\M2.efi --architecture amd64 -f M2libc/sys/types.h -f M2libc/stddef.h -f M2libc/amd64/uefi/uefi.c -f M2libc/string.c -f M2libc/amd64/uefi/fcntl.c -f M2libc/fcntl.c -f M2libc/amd64/uefi/unistd.c -f M2libc/amd64/uefi/sys/stat.c -f M2libc/stdlib.c -f M2libc/stdio.c -f M2libc/ctype.c -f M2libc/bootstrappable.c -f mescc-tools/Kaem/kaem.h -f mescc-tools/Kaem/variable.c -f mescc-tools/Kaem/kaem_globals.c -f mescc-tools/Kaem/kaem.c -o amd64/artifact/kaem.M1
+
+amd64\bin\M1.efi --architecture amd64 --little-endian -f M2libc/amd64/amd64_defs.M1 -f M2libc/amd64/uefi/libc-full.M1 -f amd64/artifact/kaem.M1 -o amd64/artifact/kaem.hex2
+
+amd64\bin\hex2.efi --architecture amd64 --little-endian -f M2libc/amd64/uefi/PE32-amd64.hex2 -f amd64/artifact/kaem.hex2 -o amd64/bin/kaem.efi
