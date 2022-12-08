@@ -8,3 +8,8 @@
 
 EFI\BOOT\BOOTX64.efi amd64\mescc-tools-seed-kaem.kaem
 amd64\artifact\kaem-0.efi amd64\mescc-tools-mini-kaem.kaem
+
+#######################################
+# Run remaining phases with full kaem #
+#######################################
+amd64\bin\kaem.efi --verbose --strict --file amd64/kaem.run
