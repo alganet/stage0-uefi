@@ -101,7 +101,7 @@ This is the only C program that we build with `cc_amd64`. M2-Planet (https://git
 
 `M2libc` hides all UEFI specific bits inside it, so that applications written for POSIX (such as `M2-Planet`) can run without any source modifications.
 
-### C versions linker and assembler
+### C versions of linker and assembler
 
 We then build C version of `hex2` (also called `hex2`) and C version of `M0` called `M1`. These are more capable than their platform specific hex counterparts and are fully cross-platform. Thus we can now have the whole toolchain written in C.
 
