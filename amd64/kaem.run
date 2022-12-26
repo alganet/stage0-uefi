@@ -5,8 +5,8 @@
 
 # To run in kaem simply: kaem --verbose --strict
 
-ARCH="amd64"
-ARCH_DIR="amd64"
+ARCH=amd64
+ARCH_DIR=amd64
 M2LIBC="../M2libc"
 TOOLS="../${ARCH_DIR}/bin"
 BLOOD_FLAG="--64"
