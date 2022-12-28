@@ -109,8 +109,6 @@ We then build C version of `hex2` (also called `hex2`) and C version of `M0` cal
 
 We now build `kaem` which is a more capable version of `kaem-optional` and adds support for variables, environmental variables, conditionals, aliases. It also has various built-ins such as `cd` and `echo`.
 
-(NOTE that at the moment UEFI port of M2libc is still work in progress so not all features of `kaem` work).
-
 ### M2-Planet (built against full M2libc)
 
 We can now rebuild `M2-Planet` so that it itself can benefit from full `M2libc`.
