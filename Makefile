@@ -55,5 +55,31 @@ else
 	rm $(rootfs_dir)/bootstrap-seeds/UEFI/amd64/kaem-optional-seed.efi
 endif
 
+Generate-amd64-answers:
+	sudo losetup -P /dev/loop0 $(build_dir)/disk.img
+	mkdir $(build_dir)/mount
+	sudo mount /dev/loop0p1 $(build_dir)/mount
+	cd $(build_dir)/mount && sha256sum amd64/bin/blood-elf.efi \
+amd64/bin/catm.efi \
+amd64/bin/chmod.efi \
+amd64/bin/cp.efi \
+amd64/bin/get_machine.efi \
+amd64/bin/hex2.efi \
+amd64/bin/kaem.efi \
+amd64/bin/M1.efi \
+amd64/bin/M2-Mesoplanet.efi \
+amd64/bin/M2-Planet.efi \
+amd64/bin/match.efi \
+amd64/bin/mkdir.efi \
+amd64/bin/replace.efi \
+amd64/bin/rm.efi \
+amd64/bin/sha256sum.efi \
+amd64/bin/ungz.efi \
+amd64/bin/unbz2.efi \
+amd64/bin/untar.efi >| ../../amd64.answers
+	sudo umount $(build_dir)/mount
+	rmdir $(build_dir)/mount
+	sudo losetup -d /dev/loop0
+
 clean:
 	rm -rf $(build_dir)
