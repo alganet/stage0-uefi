@@ -118,6 +118,11 @@ We can now rebuild `M2-Planet` so that it itself can benefit from full `M2libc`.
 `M2-Mesoplanet` is a preprocessor that is more capable than `M2-Planet` and supports `#include` statements. It can also launch compiler, assembler and linker, so we don't need to invoke them
 manually.
 
+### blood-elf
+
+`blood-elf` is a tool that can generate a bit of debug info for POSIX binaries. It is not immediately useful for UEFI but
+it might be useful if one wants to build debuggable POSIX binaries on UEFI.
+
 ### mescc-tools-extra
 
 Some extra tools such as `sha256sum`, `untar`, `ungz`, `unbz2`, `mkdir`, `rm` and a few others.
