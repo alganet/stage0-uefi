@@ -10,13 +10,14 @@
 ./${ARCH_DIR}/artifact/M2.efi --architecture ${ARCH} \
 	-f ./M2libc/sys/types.h \
 	-f ./M2libc/stddef.h \
-	-f ./M2libc/${ARCH}/uefi/uefi.c \
+	-f ./M2libc/uefi/uefi.c \
 	-f ./M2libc/string.c \
-	-f ./M2libc/${ARCH}/uefi/fcntl.c \
+	-f ./M2libc/uefi/fcntl.c \
 	-f ./M2libc/fcntl.c \
+	-f ./M2libc/stdio.h \
 	-f ./M2libc/stdio.c \
-	-f ./M2libc/${ARCH}/uefi/unistd.c \
-	-f ./M2libc/${ARCH}/uefi/sys/stat.c \
+	-f ./M2libc/uefi/unistd.c \
+	-f ./M2libc/uefi/sys/stat.c \
 	-f ./M2libc/stdlib.c \
 	-f ./M2libc/ctype.c \
 	-f ./M2libc/bootstrappable.c \
@@ -53,13 +54,14 @@ cd ${ARCH_DIR}
 ./bin/M2-Planet.efi --architecture ${ARCH} \
 	-f ../M2libc/sys/types.h \
 	-f ../M2libc/stddef.h \
-	-f ../M2libc/${ARCH}/uefi/uefi.c \
+	-f ../M2libc/uefi/uefi.c \
 	-f ../M2libc/string.c \
-	-f ../M2libc/${ARCH}/uefi/fcntl.c \
+	-f ../M2libc/uefi/fcntl.c \
 	-f ../M2libc/fcntl.c \
+	-f ../M2libc/stdio.h \
 	-f ../M2libc/stdio.c \
-	-f ../M2libc/${ARCH}/uefi/unistd.c \
-	-f ../M2libc/${ARCH}/uefi/sys/stat.c \
+	-f ../M2libc/uefi/unistd.c \
+	-f ../M2libc/uefi/sys/stat.c \
 	-f ../M2libc/stdlib.c \
 	-f ../M2libc/ctype.c \
 	-f ../M2libc/bootstrappable.c \
@@ -93,12 +95,13 @@ cd ${ARCH_DIR}
 ./bin/M2-Planet.efi --architecture ${ARCH} \
 	-f ../M2libc/sys/types.h \
 	-f ../M2libc/stddef.h \
-	-f ../M2libc/${ARCH}/uefi/uefi.c \
+	-f ../M2libc/uefi/uefi.c \
 	-f ../M2libc/string.c \
-	-f ../M2libc/${ARCH}/uefi/fcntl.c \
+	-f ../M2libc/uefi/fcntl.c \
 	-f ../M2libc/fcntl.c \
+	-f ../M2libc/stdio.h \
 	-f ../M2libc/stdio.c \
-	-f ../M2libc/${ARCH}/uefi/unistd.c \
+	-f ../M2libc/uefi/unistd.c \
 	-f ../M2libc/stdlib.c \
 	-f ../M2libc/ctype.c \
 	-f ../M2libc/bootstrappable.c \
@@ -117,3 +120,37 @@ cd ${ARCH_DIR}
 	-f ../M2libc/${ARCH}/uefi/PE32-${ARCH}.hex2 \
 	-f ./artifact/get_machine.hex2 \
 	-o ./bin/get_machine.efi
+
+#############################################
+# Phase-14 Build blood_elf from C sources   #
+#############################################
+
+./bin/M2-Planet.efi --architecture ${ARCH} \
+	-f ../M2libc/sys/types.h \
+	-f ../M2libc/stddef.h \
+	-f ../M2libc/uefi/uefi.c \
+	-f ../M2libc/string.c \
+	-f ../M2libc/uefi/fcntl.c \
+	-f ../M2libc/fcntl.c \
+	-f ../M2libc/stdio.h \
+	-f ../M2libc/stdio.c \
+	-f ../M2libc/uefi/unistd.c \
+	-f ../M2libc/stdlib.c \
+	-f ../M2libc/ctype.c \
+	-f ../M2libc/bootstrappable.c \
+	-f ../mescc-tools/stringify.c \
+	-f ../mescc-tools/blood-elf.c \
+	-o artifact/blood-elf.M1
+
+./bin/M1.efi --architecture ${ARCH} \
+	${ENDIAN_FLAG} \
+	-f ../M2libc/${ARCH}/${ARCH}_defs.M1 \
+	-f ../M2libc/${ARCH}/uefi/libc-full.M1 \
+	-f ./artifact/blood-elf.M1 \
+	-o ./artifact/blood-elf.hex2
+
+./bin/hex2.efi --architecture ${ARCH} \
+	${ENDIAN_FLAG} \
+	-f ../M2libc/${ARCH}/uefi/PE32-${ARCH}.hex2 \
+	-f ./artifact/blood-elf.hex2 \
+	-o ./bin/blood-elf.efi

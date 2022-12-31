@@ -113,6 +113,11 @@ We now build `kaem` which is a more capable version of `kaem-optional` and adds 
 
 We can now rebuild `M2-Planet` so that it itself can benefit from full `M2libc`.
 
-### Work in progress
+### M2-Mesoplanet
 
-Stage0-uefi is not yet complete and we still need to improve M2libc to reach the feature parity with `stage0-posix`.
+`M2-Mesoplanet` is a preprocessor that is more capable than `M2-Planet` and supports `#include` statements. It can also launch compiler, assembler and linker, so we don't need to invoke them
+manually.
+
+### mescc-tools-extra
+
+Some extra tools such as `sha256sum`, `untar`, `ungz`, `unbz2`, `mkdir`, `rm` and a few others.

@@ -15,6 +15,8 @@ ENDIAN_FLAG="--little-endian"
 BINDIR="../${ARCH_DIR}/bin"
 BUILDDIR="../${ARCH_DIR}/artifact"
 TMPDIR="${BUILDDIR}"
+EXE_SUFFIX=".efi"
+OPERATING_SYSTEM_FLAG="--operating-system UEFI"
 
 ################################################
 # Phase 11-14 Rebuild M2-Planet from C sources #
@@ -27,7 +29,7 @@ TMPDIR="${BUILDDIR}"
 cd mescc-tools-extra
 ${BINDIR}/kaem.efi --verbose --strict --file mescc-tools-extra.kaem
 cd ..
-./${ARCH_DIR}/bin/sha256sum -c ${ARCH}.answers
+./${ARCH_DIR}/bin/sha256sum.efi -c ${ARCH}.answers
 
 #########################
 # Load after.kaem hook  #
