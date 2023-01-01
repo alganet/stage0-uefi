@@ -16,7 +16,7 @@ BINDIR="../${ARCH_DIR}/bin"
 BUILDDIR="../${ARCH_DIR}/artifact"
 TMPDIR="${BUILDDIR}"
 EXE_SUFFIX=".efi"
-OPERATING_SYSTEM_FLAG="--operating-system UEFI"
+OPERATING_SYSTEM="UEFI"
 
 ################################################
 # Phase 11-14 Rebuild M2-Planet from C sources #
