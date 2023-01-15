@@ -71,8 +71,8 @@ DEFINE mov_r13,rax 4989C5
 DEFINE mov_r13,rdx 4989D5
 DEFINE mov_al,[rbx] 8A03
 DEFINE mov_al,[rbx+rcx] 8A040B
-DEFINE mov_al,[rdx] 8A02
 DEFINE mov_al,[rcx] 8A01
+DEFINE mov_al,[rdx] 8A02
 DEFINE mov_bl,[rax] 8A18
 DEFINE mov_bl,[rdx] 8A1A
 DEFINE mov_cl,[rax] 8A08
@@ -302,7 +302,7 @@ DEFINE xor_r13,r13 4D31ED
 
 
 # Tokenize_Line Function
-# Using input file R15 and Head R13
+# Using Head R13
 # Creates a linked list of structs
 # Uses RBX for in_set strings, RCX for Int C and RDX for Struct Token* p
 :Tokenize_Line
@@ -494,13 +494,13 @@ DEFINE xor_r13,r13 4D31ED
 
 # Char sets
 :terminators
-    !10 !9 !32 !0
+    !10 !9 !32 !0               # "\n\t \0"
 
 :comments
-    !35 !59 !0
+    !35 !59 !0                  # "#;\0"
 
 :string_char
-    !34 !39 !0
+    !34 !39 !0                  # "\"'\0"
 
 
 # Reverse_List function
@@ -574,7 +574,7 @@ DEFINE xor_r13,r13 4D31ED
     ret
 
 :DEFINE_str
-    !68 !69 !70 !73 !78 !69 !0
+    !68 !69 !70 !73 !78 !69 !0  # "DEFINE"
 
 
 # match function

@@ -163,7 +163,7 @@
 
 
 # Tokenize_Line Function
-# Using input file R15 and Head R13
+# Using Head R13
 # Creates a linked list of structs
 # Uses RBX for in_set strings, RCX for Int C and RDX for Struct Token* p
 :Tokenize_Line
