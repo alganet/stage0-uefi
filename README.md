@@ -87,7 +87,7 @@ DEFINE sub_rbx, 4881EB
 
 ### cc_amd64
 
-The `cc_amd64` implements a subset of the C language designed in `M0` assembly. It is somewhat limitted subset of C but complete enough to make it easy to write a real C compiler written in the C subset that `cc_amd64` supports.
+The `cc_amd64` implements a subset of the C language designed in `M0` assembly. It is somewhat limited subset of C but complete enough to make it easy to write a real C compiler written in the C subset that `cc_amd64` supports.
 
 At this stage we start using `M2libc` (https://github.com/oriansj/M2libc/) as our C library. In fact, `M2libc` ships two versions of C library. At this stage we use a single-file (`bootstrap.c`) C library that contains just enough to build `M2-Planet`.
 
