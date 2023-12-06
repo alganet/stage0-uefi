@@ -18,7 +18,7 @@ ESP_SIZE_SECTORS = $$(($(ESP_SIZE_MIB) * 2048))
 DISK_SIZE_SECTORS = $$(($(ESP_SIZE_SECTORS) + 2048 + 33))
 
 cc = clang
-cflags = -ffreestanding -MMD -mno-red-zone -std=c11 -target x86_64-unknown-windows
+cflags = -ffreestanding -MMD -mno-red-zone -std=c11 -target x86_64-pc-windows-coff -fno-PIE -fno-stack-protector
 ld = lld-link
 lflags = -subsystem:efi_application -nodefaultlib -dll
 build_dir = build
