@@ -66,11 +66,11 @@ This is the last program that has to be written in `hex0` language. `hex1` is a 
 
 ### catm
 
-`catm` allows concatenating files via `catm.efi output_file input1 input2 ... inputN`. This allows us to split shared code into separate files. We will first use it to append `PE` header to `.hex2` files. Before this step PE header had to be included in the source file itself.
+`catm` allows concatenating files via `catm.efi output_file input1 input2 ... inputN`. This allows us to distribute shared code in separate files. We will first use it to append the `PE` header to `.hex2` files. Before this step PE header had to be included in the source file itself.
 
 ### M0
 
-The `M0` assembly language is the simplest assembly language you can create that enables the creation of real world programs with practical application. It includes only a single keyword: `DEFINE` and leverages the language properties of `hex2` along with extending the behavior to populate immediate values of various sizes and formats.
+The `M0` assembly language is the simplest assembly language you can create that enables the creation of more complicated programs. It includes only a single keyword: `DEFINE` and leverages the language properties of `hex2` along with extending the behavior to populate immediate values of various sizes and formats.
 
 Thus `M0` code looks like
 
@@ -87,7 +87,7 @@ DEFINE sub_rbx, 4881EB
 
 ### cc_amd64
 
-The `cc_amd64` implements a subset of the C language designed in `M0` assembly. It is somewhat limited subset of C but complete enough to make it easy to write a real C compiler written in the C subset that `cc_amd64` supports.
+The `cc_amd64` implements a subset of the C language designed in `M0` assembly. It is a somewhat limited subset of C but complete enough to make it easy to write a more usable C compiler written in the C subset that `cc_amd64` supports.
 
 At this stage we start using `M2libc` (https://github.com/oriansj/M2libc/) as our C library. In fact, `M2libc` ships two versions of C library. At this stage we use a single-file (`bootstrap.c`) C library that contains just enough to build `M2-Planet`.
 
@@ -107,7 +107,7 @@ We then build C version of `hex2` (also called `hex2`) and C version of `M0` cal
 
 ### kaem
 
-We now build `kaem` which is a more capable version of `kaem-optional` and adds support for variables, environmental variables, conditionals, aliases. It also has various built-ins such as `cd` and `echo`.
+We now build `kaem` which is a more capable version of `kaem-optional` and adds support for variables, environmental variables, conditionals and aliases. It also has various built-ins such as `cd` and `echo`.
 
 ### M2-Planet (built against full M2libc)
 
@@ -115,7 +115,7 @@ We can now rebuild `M2-Planet` so that it itself can benefit from full `M2libc`.
 
 ### M2-Mesoplanet
 
-`M2-Mesoplanet` is a preprocessor that is more capable than `M2-Planet` and supports `#include` statements. It can also launch compiler, assembler and linker, so we don't need to invoke them
+`M2-Mesoplanet` is a preprocessor that is more capable than `M2-Planet` and supports `#include` statements. It can also launch compiler, assembler and linker with the correct arguments, so we don't need to invoke them
 manually.
 
 ### blood-elf
