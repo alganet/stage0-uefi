@@ -5,7 +5,7 @@
 targets = kaem-optional hex0 hex1 hex2 catm M0 cc_amd64
 
 cc = clang
-cflags = -ffreestanding -MMD -mno-red-zone -target x86_64-unknown-windows
+cflags = -ffreestanding -MMD -mno-red-zone -target x86_64-unknown-windows-coff -fno-PIE -fno-stack-protector
 ld = lld-link
 lflags = -subsystem:efi_application -nodefaultlib -dll
 
