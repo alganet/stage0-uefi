@@ -439,14 +439,14 @@ F0 00                           # SizeOfOptionalHeader
 # Protocol GUIDs
 # :LOADED_IMAGE_PROTOCOL [_start+0x1E9]
     A1 31 1B 5B             ; %0x5b1b31a1
-    62 95                   ; @0x9562
-    D2 11                   ; @0x11d2
+    62 95                   ; $0x9562
+    D2 11                   ; $0x11d2
     8E 3F 00 A0 C9 69 72 3B ; !0x8e !0x3f !0 !0xa0 !0xc9 !0x69 !0x72 !0x3b
 
 # :SIMPLE_FS_PROTOCOL [_start+0x1F9]
     22 5B 4E 96             ; %0x964e5b22
-    59 64                   ; @0x6459
-    D2 11                   ; @0x11d2
+    59 64                   ; $0x6459
+    D2 11                   ; $0x11d2
     8E 39 00 A0 C9 69 72 3B ; !0x8e !0x39 !0 !0xa0 !0xc9 !0x69 !0x72 !0x3b
 
 # :ELF_end [_start+0x209]
