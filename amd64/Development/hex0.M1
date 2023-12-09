@@ -10,11 +10,13 @@
 # First four arguments are passed via registers rcx, rdx, r8, r9 (if they fit in 64-bits)
 # but we need to leave stack space
 # rax, rcx, rdx, r8, r9, r10 and r11 are volatile and can be changed by called function
+# Stack must be 16-byte aligned before UEFI calls.
 
 DEFINE add_eax,edi 01F8
 DEFINE add_rbx, 4883C3
 DEFINE add_rsp, 4883C4
 DEFINE add_rbx,[rdi+BYTE] 48035F
+DEFINE and_rsp, 4883E4
 DEFINE call E8
 DEFINE call_[rcx+BYTE] FF51
 DEFINE call_[r14+BYTE] 41FF56
@@ -39,18 +41,22 @@ DEFINE mov_rcx,r13 4C89E9
 DEFINE mov_rdx,rbx 4889DA
 DEFINE mov_rdx,rsp 4889E2
 DEFINE mov_rsp,rbp 4889EC
+DEFINE mov_rsp,r15 4C89FC
 DEFINE mov_r8,rsp 4989E0
 DEFINE mov_r8,r15 4D89F8
 DEFINE mov_r9,r15 4D89F9
 DEFINE mov_r13,rcx 4989CD
 DEFINE mov_r15,rcx 4989CF
+DEFINE mov_r15,rsp 4989E7
 DEFINE mov_al,[rbx] 8A03
 DEFINE mov_[rbx], C603
 DEFINE mov_rbx,[rdi+BYTE] 488B5F
 DEFINE mov_rcx,[rdi+BYTE] 488B4F
+DEFINE mov_rsp,[rsp+BYTE] 488B6424
 DEFINE mov_r14,[rdx+BYTE] 4C8B72
 DEFINE pop_rax 58
 DEFINE pop_rbx 5B
+DEFINE pop_rbp 5D
 DEFINE pop_rcx 59
 DEFINE pop_rdi 5F
 DEFINE pop_rsi 5E
@@ -62,12 +68,17 @@ DEFINE pop_r14 415E
 DEFINE pop_r15 415F
 DEFINE push 6A
 DEFINE push_rax 50
+DEFINE push_rbp 55
 DEFINE push_rbx 53
+DEFINE push_rdi 57
 DEFINE push_rdx 52
 DEFINE push_rsi 56
+DEFINE push_rsp 54
+DEFINE push_r12 4154
 DEFINE push_r13 4155
 DEFINE push_r14 4156
 DEFINE push_r15 4157
+DEFINE push_[rsp] FF3424
 DEFINE ret C3
 DEFINE ror_r9 49D1C9
 DEFINE shl_edi, C1E7
@@ -84,7 +95,17 @@ DEFINE xor_r9,r9 4D31C9
 
 # efi_main(void *image_handle, struct efi_system_table *system)
 :_start
-    mov_rbp,rsp                                  # save stack pointer
+    # Save non-volatile registers
+    push_rbp
+    mov_rbp,rsp
+    push_rbx
+    push_rdi
+    push_rsi
+    push_r12
+    push_r13
+    push_r14
+    push_r15
+
     mov_r15,rcx                                  # save image_handle
     mov_r14,[rdx+BYTE] !96                       # system->boot
 
@@ -144,6 +165,7 @@ DEFINE xor_r9,r9 4D31C9
 
     # Open file for reading
     pop_r8                      # arg3 = in
+    and_rsp, !-16               # align stack to 16 bytes
     push_rdx                    # allocate stack for fin
     mov_rdx,rsp                 # arg2 = &fin
     push !1                     # arg5 = EFI_FILE_READ_ONLY
@@ -174,6 +196,7 @@ DEFINE xor_r9,r9 4D31C9
     push_r14                    # save system->boot
     push_r15                    # save image_handle
     push_rsi                    # save rootdir
+    mov_r15,rsp                 # save stack location for cleanup
 
     # Our flag for byte processing
     push !-1
@@ -279,6 +302,10 @@ DEFINE xor_r9,r9 4D31C9
 
 # Writes byte stored in al
 :write_byte
+    push_rsp                    # align stack to 16 bytes
+    push_[rsp]                  # align stack to 16 bytes
+    and_rsp, !-16               # align stack to 16 bytes
+    push_rax                    # make sure next call is aligned to 16 bytes
     mov_rcx,r13                 # arg1 = fout
     push !1                     # size = 1
     mov_rdx,rsp                 # arg2 = &size
@@ -288,11 +315,15 @@ DEFINE xor_r9,r9 4D31C9
     push_rax                    # allocate shadow stack space for UEFI function
     push_rax                    # allocate shadow stack space for UEFI function
     call_[rcx+BYTE] !40         # fout->write()
-    add_rsp, !40                # deallocate stack
+    mov_rsp,[rsp+BYTE] !56      # deallocate stack
 
     ret                         # return
 
 :read_byte
+    push_rsp                    # align stack to 16 bytes
+    push_[rsp]                  # align stack to 16 bytes
+    and_rsp, !-16               # align stack to 16 bytes
+    push_rax                    # make sure next call is aligned to 16 bytes
     mov_rcx,r12                 # arg1 = fin
     push !1                     # size = 1
     mov_rdx,rsp                 # arg2 = &size
@@ -307,6 +338,7 @@ DEFINE xor_r9,r9 4D31C9
     pop_rax                     # deallocate stack
     pop_rax                     # save input to rax
     pop_rsi                     # save size to rsi
+    mov_rsp,[rsp+BYTE] !16      # deallocate stack
 
     # If the file ended (0 bytes read) terminate
     test_esi,esi                # if size = 0
@@ -315,7 +347,7 @@ DEFINE xor_r9,r9 4D31C9
     ret                         # return
 
 :terminate
-    pop_rax                     # remove last return address from stack
+    mov_rsp,r15                 # restore stack location for cleanup
     pop_rsi                     # restore rootdir
     pop_r15                     # restore image_handle
     pop_r14                     # restore system->boot
@@ -342,7 +374,17 @@ DEFINE xor_r9,r9 4D31C9
     xor_r9,r9                   # arg4 = NULL
     call_[r14+DWORD] %288       # system->boot->close_protocol(image_handle, &guid, image_handle, 0)
 
+    # Restore non-volatile registers
+    pop_r15
+    pop_r14
+    pop_r13
+    pop_r12
+    pop_rsi
+    pop_rdi
+    pop_rbx
+
     mov_rsp,rbp                 # restore stack
+    pop_rbp
     ret                         # return to UEFI
 
 

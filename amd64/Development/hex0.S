@@ -10,6 +10,7 @@
 # First four arguments are passed via registers rcx, rdx, r8, r9 (if they fit in 64-bits)
 # but we need to leave stack space
 # rax, rcx, rdx, r8, r9, r10 and r11 are volatile and can be changed by called function
+# Stack must be 16-byte aligned before UEFI calls.
 
 .intel_syntax noprefix
 .global _start
@@ -17,7 +18,17 @@
 
 # efi_main(void *image_handle, struct efi_system_table *system)
 _start:
-        mov rbp, rsp                       # save stack pointer
+        # Save non-volatile registers
+        push rbp
+        mov rbp, rsp
+        push rbx
+        push rdi
+        push rsi
+        push r12
+        push r13
+        push r14
+        push r15
+
         mov r15, rcx                       # save image_handle
         mov r14, [rdx+96]                  # system->boot
 
@@ -77,6 +88,7 @@ loop_options_done:
 
         # Open file for reading
         pop r8                             # arg3 = in
+        and rsp, -16                       # align stack to 16 bytes
         push rdx                           # allocate stack for fin
         mov rdx, rsp                       # arg2 = &fin
         push 1                             # arg5 = EFI_FILE_READ_ONLY
@@ -107,6 +119,7 @@ loop_options_done:
         push r14                           # save system->boot
         push r15                           # save image_handle
         push rsi                           # save rootdir
+        mov r15, rsp                       # save stack location for cleanup
 
         # Our flag for byte processing
         push -1
@@ -212,6 +225,10 @@ ascii_high:
 
 # Writes byte stored in al
 write_byte:
+        push rsp                           # align stack to 16 bytes
+        push [rsp]                         # align stack to 16 bytes
+        and rsp, -16                       # align stack to 16 bytes
+        push rax                           # make sure next call is aligned to 16 bytes
         mov rcx, r13                       # arg1 = fout
         push 1                             # size = 1
         mov rdx, rsp                       # arg2 = &size
@@ -221,11 +238,15 @@ write_byte:
         push rax                           # allocate shadow stack space for UEFI function
         push rax                           # allocate shadow stack space for UEFI function
         call [rcx+40]                      # fout->write()
-        add rsp, 40                        # deallocate stack
+        mov rsp, [rsp+56]                  # deallocate stack
 
         ret                                # return
 
 read_byte:
+        push rsp                           # align stack to 16 bytes
+        push [rsp]                         # align stack to 16 bytes
+        and rsp, -16                       # align stack to 16 bytes
+        push rax                           # make sure next call is aligned to 16 bytes
         mov rcx, r12                       # arg1 = fin
         push 1                             # size = 1
         mov rdx, rsp                       # arg2 = &size
@@ -241,6 +262,7 @@ read_byte:
         pop rax                            # deallocate stack
         pop rax                            # save input to rax
         pop rsi                            # save size to rsi
+        mov rsp, [rsp+16]                  # deallocate stack
 
         # If the file ended (0 bytes read) terminate
         test esi, esi                      # if size == 0
@@ -249,7 +271,7 @@ read_byte:
         ret                                # return
 
 terminate:
-        pop rax                            # remove last return address from stack
+        mov rsp, r15                       # restore stack location for cleanup
         pop rsi                            # restore rootdir
         pop r15                            # restore image_handle
         pop r14                            # restore system->boot
@@ -276,8 +298,18 @@ terminate:
         xor r9, r9                         # arg4 = NULL
         call [r14+288]                     # system->boot->close_protocol(image_handle, &guid, image_handle, 0)
 
+        # Restore non-volatile registers
+        pop r15
+        pop r14
+        pop r13
+        pop r12
+        pop rsi
+        pop rdi
+        pop rbx
+
 abort: # used for debugging only
         mov rsp, rbp                       # restore stack
+        pop rbp
         ret                                # return to UEFI
 
 
