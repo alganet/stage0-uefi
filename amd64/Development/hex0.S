@@ -243,26 +243,23 @@ write_byte:
         ret                                # return
 
 read_byte:
-        push rsp                           # align stack to 16 bytes
-        push [rsp]                         # align stack to 16 bytes
-        and rsp, -16                       # align stack to 16 bytes
-        push rax                           # make sure next call is aligned to 16 bytes
         mov rcx, r12                       # arg1 = fin
         push 1                             # size = 1
         mov rdx, rsp                       # arg2 = &size
         xor esi, esi                       # zero rsi
         push rsi                           # allocate stack
         mov r8, rsp                        # arg3 = &input
+        push rsp                           # align stack to 16 bytes
+        push [rsp]                         # align stack to 16 bytes
+        and rsp, -16                       # align stack to 16 bytes
+        push rax                           # make sure next call is aligned to 16 bytes
         push rax                           # allocate shadow stack space for UEFI function
         push rax                           # allocate shadow stack space for UEFI function
         push rax                           # allocate shadow stack space for UEFI function
         call [rcx+32]                      # fin->read()
-        pop rax                            # deallocate stack
-        pop rax                            # deallocate stack
-        pop rax                            # deallocate stack
+        mov rsp, [rsp+40]                  # deallocate stack
         pop rax                            # save input to rax
         pop rsi                            # save size to rsi
-        mov rsp, [rsp+16]                  # deallocate stack
 
         # If the file ended (0 bytes read) terminate
         test esi, esi                      # if size == 0

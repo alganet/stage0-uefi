@@ -320,25 +320,22 @@ DEFINE xor_r9,r9 4D31C9
     ret                         # return
 
 :read_byte
-    push_rsp                    # align stack to 16 bytes
-    push_[rsp]                  # align stack to 16 bytes
-    and_rsp, !-16               # align stack to 16 bytes
-    push_rax                    # make sure next call is aligned to 16 bytes
     mov_rcx,r12                 # arg1 = fin
     push !1                     # size = 1
     mov_rdx,rsp                 # arg2 = &size
     push !0                     # allocate stack
     mov_r8,rsp                  # arg3 = &input
+    push_rsp                    # align stack to 16 bytes
+    push_[rsp]                  # align stack to 16 bytes
+    and_rsp, !-16               # align stack to 16 bytes
+    push_rax                    # make sure next call is aligned to 16 bytes
     push_rax                    # allocate shadow stack space for UEFI function
     push_rax                    # allocate shadow stack space for UEFI function
     push_rax                    # allocate shadow stack space for UEFI function
     call_[rcx+BYTE] !32         # fin->read()
-    pop_rax                     # deallocate stack
-    pop_rax                     # deallocate stack
-    pop_rax                     # deallocate stack
+    mov_rsp,[rsp+BYTE] !40      # deallocate stack
     pop_rax                     # save input to rax
     pop_rsi                     # save size to rsi
-    mov_rsp,[rsp+BYTE] !16      # deallocate stack
 
     # If the file ended (0 bytes read) terminate
     test_esi,esi                # if size = 0

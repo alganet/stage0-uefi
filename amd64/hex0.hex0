@@ -129,9 +129,9 @@ F0 00                           # SizeOfOptionalHeader
 # [0x148]
 # Start of section headers
 00 00 00 00 00 00 00 00                 ; Name of the section (empty) but could set to ".text"
-09 02 00 00                             ; VirtualSize
+06 02 00 00                             ; VirtualSize
 00 10 00 00                             ; VirtualAddress
-09 02 00 00                             ; SizeOfRawData
+06 02 00 00                             ; SizeOfRawData
 70 01 00 00                             ; PointerToRawData
 00 00 00 00                             ; PointerToRelocations
 00 00 00 00                             ; PointerToLinenumbers
@@ -159,7 +159,7 @@ F0 00                           # SizeOfOptionalHeader
 
     # Open Loaded Image protocol
     4D89F9          ; mov_r9,r15                                   # arg4 = image_handle
-    488D15 C9010000 ; lea_rdx,[rip+DWORD] %LOADED_IMAGE_PROTOCOL   # guid = &LOADED_IMAGE_PROTOCOL
+    488D15 C6010000 ; lea_rdx,[rip+DWORD] %LOADED_IMAGE_PROTOCOL   # guid = &LOADED_IMAGE_PROTOCOL
     4C89C9          ; mov_rcx,r9                                   # arg1 = image_handle
     50              ; push_rax                                     # allocate stack for image
     4989E0          ; mov_r8,rsp                                   # arg3 = &image
@@ -172,7 +172,7 @@ F0 00                           # SizeOfOptionalHeader
 
     # Get root file system
     4D89F9          ; mov_r9,r15                                   # arg4 = image_handle
-    488D15 B4010000 ; lea_rdx,[rip+DWORD] %SIMPLE_FS_PROTOCOL      # guid = &SIMPLE_FS_PROTOCOL
+    488D15 B1010000 ; lea_rdx,[rip+DWORD] %SIMPLE_FS_PROTOCOL      # guid = &SIMPLE_FS_PROTOCOL
     488B4F 18       ; mov_rcx,[rdi+BYTE] !24                       # arg1 = root_device = image->device
     4989CD          ; mov_r13,rcx                                  # save root_device
     50              ; push_rax                                     # allocate stack for rootfs
@@ -368,25 +368,22 @@ F0 00                           # SizeOfOptionalHeader
     C3              ; ret                         # return
 
 # :read_byte [_start+0x160]
-    54              ; push_rsp                    # align stack to 16 bytes
-    FF3424          ; push_[rsp]                  # align stack to 16 bytes
-    4883E4 F0       ; and_rsp, !-16               # align stack to 16 bytes
-    50              ; push_rax                    # make sure next call is aligned to 16 bytes
     4C89E1          ; mov_rcx,r12                 # arg1 = fin
     6A 01           ; push !1                     # size = 1
     4889E2          ; mov_rdx,rsp                 # arg2 = &size
     6A 00           ; push_rsi                    # allocate stack
     4989E0          ; mov_r8,rsp                  # arg3 = &input
+    54              ; push_rsp                    # align stack to 16 bytes
+    FF3424          ; push_[rsp]                  # align stack to 16 bytes
+    4883E4 F0       ; and_rsp, !-16               # align stack to 16 bytes
+    50              ; push_rax                    # make sure next call is aligned to 16 bytes
     50              ; push_rax                    # allocate shadow stack space for UEFI function
     50              ; push_rax                    # allocate shadow stack space for UEFI function
     50              ; push_rax                    # allocate shadow stack space for UEFI function
     FF51 20         ; call_[rcx+BYTE] !32         # fin->read()
-    58              ; pop_rax                     # deallocate stack
-    58              ; pop_rax                     # deallocate stack
-    58              ; pop_rax                     # deallocate stack
+    488B6424 28     ; mov_rsp,[rsp+BYTE] !40      # deallocate stack
     58              ; pop_rax                     # save input to rax
     5E              ; pop_rsi                     # save size to rsi
-    488B6424 10     ; mov_rsp,[rsp+BYTE] !16      # deallocate stack
 
     # If the file ended (0 bytes read) terminate
     85F6            ; test_esi,esi                # if size = 0
@@ -394,7 +391,7 @@ F0 00                           # SizeOfOptionalHeader
 
     C3              ; ret                         # return
 
-# :terminate [_start+0x18B]
+# :terminate [_start+0x188]
     4C89FC          ; mov_rsp,r15                 # restore stack location for cleanup
     5E              ; pop_rsi                     # restore rootdir
     415F            ; pop_r15                     # restore image_handle
@@ -437,16 +434,16 @@ F0 00                           # SizeOfOptionalHeader
 
 
 # Protocol GUIDs
-# :LOADED_IMAGE_PROTOCOL [_start+0x1E9]
+# :LOADED_IMAGE_PROTOCOL [_start+0x1E6]
     A1 31 1B 5B             ; %0x5b1b31a1
     62 95                   ; $0x9562
     D2 11                   ; $0x11d2
     8E 3F 00 A0 C9 69 72 3B ; !0x8e !0x3f !0 !0xa0 !0xc9 !0x69 !0x72 !0x3b
 
-# :SIMPLE_FS_PROTOCOL [_start+0x1F9]
+# :SIMPLE_FS_PROTOCOL [_start+0x1F6]
     22 5B 4E 96             ; %0x964e5b22
     59 64                   ; $0x6459
     D2 11                   ; $0x11d2
     8E 39 00 A0 C9 69 72 3B ; !0x8e !0x39 !0 !0xa0 !0xc9 !0x69 !0x72 !0x3b
 
-# :ELF_end [_start+0x209]
+# :ELF_end [_start+0x206]
