@@ -488,9 +488,9 @@ DEFINE xor_r15,r15 4D31FF
     pop_rbx
 
 :abort
-    mov_rsp,rbp                 # restore stack
+    mov_rsp,rbp                      # restore stack
     pop_rbp
-    ret                         # return to UEFI
+    ret                              # return to UEFI
 
 # File_Print function
 # Receives WCHAR* in RDX

@@ -500,9 +500,9 @@ F0 00                           # SizeOfOptionalHeader
     5B              ; pop_rbx
 
 # :abort [_start+0x339]
-    4889EC          ; mov_rsp,rbp                 # restore stack
+    4889EC          ; mov_rsp,rbp                      # restore stack
     5D              ; pop_rbp
-    C3              ; ret                         # return to UEFI
+    C3              ; ret                              # return to UEFI
 
 # :File_Print [_start+0x33E]
     54              ; push_rsp                         # align stack to 16 bytes
