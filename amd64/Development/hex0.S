@@ -20,7 +20,6 @@
 _start:
         # Save non-volatile registers
         push rbp
-        mov rbp, rsp
         push rbx
         push rdi
         push rsi
@@ -62,11 +61,9 @@ _start:
         # Get root directory
         push rax                           # allocate stack for rootdir
         mov rdx, rsp                       # arg2 = &rootdir
-        push rax                           # allocate shadow stack space for UEFI function
-        push rax                           # allocate shadow stack space for UEFI function
+        sub rsp, 32                        # allocate shadow stack space for UEFI function
         call [rcx+8]                       # rootfs->open_volume(rootfs, &rootdir)
-        pop rax                            # deallocate stack
-        pop rax                            # deallocate stack
+        add rsp, 32                        # deallocate stack
         pop rsi                            # get rootdir
 
         # Push command line arguments onto stack
@@ -117,9 +114,7 @@ loop_options_done:
 
         # Save variables that are needed for cleanup
         push r14                           # save system->boot
-        push r15                           # save image_handle
         push rsi                           # save rootdir
-        mov r15, rsp                       # save stack location for cleanup
 
         # Our flag for byte processing
         push -1
@@ -228,15 +223,12 @@ write_byte:
         push rsp                           # align stack to 16 bytes
         push [rsp]                         # align stack to 16 bytes
         and rsp, -16                       # align stack to 16 bytes
-        push rax                           # make sure next call is aligned to 16 bytes
         mov rcx, r13                       # arg1 = fout
         push 1                             # size = 1
         mov rdx, rsp                       # arg2 = &size
         push rax                           # allocate stack
         mov r8, rsp                        # arg3 = &output
-        push rax                           # allocate shadow stack space for UEFI function
-        push rax                           # allocate shadow stack space for UEFI function
-        push rax                           # allocate shadow stack space for UEFI function
+        sub rsp, 32                        # allocate shadow stack space for UEFI function
         call [rcx+40]                      # fout->write()
         mov rsp, [rsp+56]                  # deallocate stack
 
@@ -251,10 +243,7 @@ read_byte:
         push rsp                           # align stack to 16 bytes
         push [rsp]                         # align stack to 16 bytes
         and rsp, -16                       # align stack to 16 bytes
-        push rax                           # make sure next call is aligned to 16 bytes
-        push rax                           # allocate shadow stack space for UEFI function
-        push rax                           # allocate shadow stack space for UEFI function
-        push rax                           # allocate shadow stack space for UEFI function
+        sub rsp, 32                        # allocate shadow stack space for UEFI function
         call [rcx+32]                      # fin->read()
         mov rsp, [rsp+40]                  # deallocate stack
         pop rax                            # save input to rax
@@ -267,9 +256,8 @@ read_byte:
         ret                                # return
 
 terminate:
-        mov rsp, r15                       # restore stack location for cleanup
+        pop rax                            # deallocate stack (return code of read_byte)
         pop rsi                            # restore rootdir
-        pop r15                            # restore image_handle
         pop r14                            # restore system->boot
         pop rbx                            # restore root_device
 
@@ -293,6 +281,7 @@ terminate:
         mov rcx, r8                        # arg1 = image_handle
         xor r9, r9                         # arg4 = NULL
         call [r14+288]                     # system->boot->close_protocol(image_handle, &guid, image_handle, 0)
+        add rsp, 40                        # deallocate stack
 
         # Restore non-volatile registers
         pop r15
@@ -304,7 +293,6 @@ terminate:
         pop rbx
 
 abort: # used for debugging only
-        mov rsp, rbp                       # restore stack
         pop rbp
         ret                                # return to UEFI
 
