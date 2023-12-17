@@ -48,7 +48,6 @@ DEFINE mov_al,[rbx] 8A03
 DEFINE mov_[rbx], C603
 DEFINE mov_rbx,[rdi+BYTE] 488B5F
 DEFINE mov_rcx,[rdi+BYTE] 488B4F
-DEFINE mov_rsp,[rsp+BYTE] 488B6424
 DEFINE mov_r14,[rdx+BYTE] 4C8B72
 DEFINE pop_rax 58
 DEFINE pop_rbx 5B
@@ -69,12 +68,10 @@ DEFINE push_rbx 53
 DEFINE push_rdi 57
 DEFINE push_rdx 52
 DEFINE push_rsi 56
-DEFINE push_rsp 54
 DEFINE push_r12 4154
 DEFINE push_r13 4155
 DEFINE push_r14 4156
 DEFINE push_r15 4157
-DEFINE push_[rsp] FF3424
 DEFINE ret C3
 DEFINE ror_r9 49D1C9
 DEFINE shl_edi, C1E7
@@ -266,8 +263,9 @@ DEFINE xor_r9,r9 4D31C9
     jmp !ascii_other
 
 :purge_comment
-    # Read a byte
-    call %read_byte
+    push_rbx                           # align stack to 16 bytes
+    call %read_byte                    # Read a byte
+    pop_rbx                            # deallocate stack
 
     # Loop if not LF
     cmp_al, !10
@@ -293,17 +291,14 @@ DEFINE xor_r9,r9 4D31C9
 
 # Writes byte stored in al
 :write_byte
-    push_rsp                    # align stack to 16 bytes
-    push_[rsp]                  # align stack to 16 bytes
-    and_rsp, !-16               # align stack to 16 bytes
     mov_rcx,r13                 # arg1 = fout
     push !1                     # size = 1
     mov_rdx,rsp                 # arg2 = &size
     push_rax                    # allocate stack
     mov_r8,rsp                  # arg3 = &output
-    sub_rsp, !32                # allocate shadow stack space for UEFI function
+    sub_rsp, !40                # allocate shadow stack space for UEFI function
     call_[rcx+BYTE] !40         # fout->write()
-    mov_rsp,[rsp+BYTE] !56      # deallocate stack
+    add_rsp, !56                # deallocate stack
 
     ret                         # return
 
@@ -313,12 +308,9 @@ DEFINE xor_r9,r9 4D31C9
     mov_rdx,rsp                 # arg2 = &size
     push !0                     # allocate stack
     mov_r8,rsp                  # arg3 = &input
-    push_rsp                    # align stack to 16 bytes
-    push_[rsp]                  # align stack to 16 bytes
-    and_rsp, !-16               # align stack to 16 bytes
-    sub_rsp, !32                # allocate shadow stack space for UEFI function
+    sub_rsp, !40                # allocate shadow stack space for UEFI function
     call_[rcx+BYTE] !32         # fin->read()
-    mov_rsp,[rsp+BYTE] !40      # deallocate stack
+    add_rsp, !40                # deallocate stack
     pop_rax                     # save input to rax
     pop_rsi                     # save size to rsi
 

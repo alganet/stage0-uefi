@@ -189,8 +189,9 @@
     EB !ascii_other ; jmp !ascii_other
 
 :purge_comment
-    # Read a byte
-    E8 %read_byte   ; call %read_byte
+    53              ; push_rbx                    # align stack to 16 bytes
+    E8 %read_byte   ; call %read_byte             # Read a byte
+    5B              ; pop_rbx                     # deallocate stack
 
     # Loop if not LF
     3C 0A           ; cmp_al, !10
@@ -216,17 +217,14 @@
 
 # Writes byte stored in al
 :write_byte
-    54              ; push_rsp                    # align stack to 16 bytes
-    FF3424          ; push_[rsp]                  # align stack to 16 bytes
-    4883E4 F0       ; and_rsp, !-16               # align stack to 16 bytes
     4C89E9          ; mov_rcx,r13                 # arg1 = fout
     6A 01           ; push !1                     # size = 1
     4889E2          ; mov_rdx,rsp                 # arg2 = &size
     50              ; push_rax                    # allocate stack
     4989E0          ; mov_r8,rsp                  # arg3 = &output
-    4883EC 20       ; sub_rsp, !32                # allocate shadow stack space for UEFI function
+    4883EC 28       ; sub_rsp, !40                # allocate shadow stack space for UEFI function
     FF51 28         ; call_[rcx+BYTE] !40         # fout->write()
-    488B6424 38     ; mov_rsp,[rsp+BYTE] !56      # deallocate stack
+    4883C4 38       ; add_rsp, !56                # deallocate stack
 
     C3              ; ret                         # return
 
@@ -236,12 +234,9 @@
     4889E2          ; mov_rdx,rsp                 # arg2 = &size
     6A 00           ; push !0                     # allocate stack
     4989E0          ; mov_r8,rsp                  # arg3 = &input
-    54              ; push_rsp                    # align stack to 16 bytes
-    FF3424          ; push_[rsp]                  # align stack to 16 bytes
-    4883E4 F0       ; and_rsp, !-16               # align stack to 16 bytes
-    4883EC 20       ; sub_rsp, !32                # allocate shadow stack space for UEFI function
+    4883EC 28       ; sub_rsp, !40                # allocate shadow stack space for UEFI function
     FF51 20         ; call_[rcx+BYTE] !32         # fin->read()
-    488B6424 28     ; mov_rsp,[rsp+BYTE] !40      # deallocate stack
+    4883C4 28       ; add_rsp, !40                # deallocate stack
     58              ; pop_rax                     # save input to rax
     5E              ; pop_rsi                     # save size to rsi
 

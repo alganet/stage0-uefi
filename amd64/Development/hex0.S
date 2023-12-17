@@ -193,8 +193,9 @@ hex:
         jmp ascii_other
 
 purge_comment:
-        # Read a byte
-        call read_byte
+        push rbx                           # align stack to 16 bytes
+        call read_byte                     # Read a byte
+        pop rbx                            # deallocate stack
 
         # Loop if not LF (works for CR/LF and LF/CR endings too)
         cmp al, 10
@@ -220,17 +221,14 @@ ascii_high:
 
 # Writes byte stored in al
 write_byte:
-        push rsp                           # align stack to 16 bytes
-        push [rsp]                         # align stack to 16 bytes
-        and rsp, -16                       # align stack to 16 bytes
         mov rcx, r13                       # arg1 = fout
         push 1                             # size = 1
         mov rdx, rsp                       # arg2 = &size
         push rax                           # allocate stack
         mov r8, rsp                        # arg3 = &output
-        sub rsp, 32                        # allocate shadow stack space for UEFI function
+        sub rsp, 40                        # allocate shadow stack space for UEFI function
         call [rcx+40]                      # fout->write()
-        mov rsp, [rsp+56]                  # deallocate stack
+        add rsp, 56                        # deallocate stack
 
         ret                                # return
 
@@ -240,12 +238,9 @@ read_byte:
         mov rdx, rsp                       # arg2 = &size
         push 0                             # allocate stack
         mov r8, rsp                        # arg3 = &input
-        push rsp                           # align stack to 16 bytes
-        push [rsp]                         # align stack to 16 bytes
-        and rsp, -16                       # align stack to 16 bytes
-        sub rsp, 32                        # allocate shadow stack space for UEFI function
+        sub rsp, 40                        # allocate shadow stack space for UEFI function
         call [rcx+32]                      # fin->read()
-        mov rsp, [rsp+40]                  # deallocate stack
+        add rsp, 40                        # deallocate stack
         pop rax                            # save input to rax
         pop rsi                            # save size to rsi
 

@@ -129,9 +129,9 @@ F0 00                           # SizeOfOptionalHeader
 # [0x148]
 # Start of section headers
 00 00 00 00 00 00 00 00                 ; Name of the section (empty) but could set to ".text"
-FF 01 00 00                             ; VirtualSize
+EF 01 00 00                             ; VirtualSize
 00 10 00 00                             ; VirtualAddress
-FF 01 00 00                             ; SizeOfRawData
+EF 01 00 00                             ; SizeOfRawData
 70 01 00 00                             ; PointerToRawData
 00 00 00 00                             ; PointerToRelocations
 00 00 00 00                             ; PointerToLinenumbers
@@ -158,7 +158,7 @@ FF 01 00 00                             ; SizeOfRawData
 
     # Open Loaded Image protocol
     4D89F9          ; mov_r9,r15                                   # arg4 = image_handle
-    488D15 C2010000 ; lea_rdx,[rip+DWORD] %LOADED_IMAGE_PROTOCOL   # guid = &LOADED_IMAGE_PROTOCOL
+    488D15 B2010000 ; lea_rdx,[rip+DWORD] %LOADED_IMAGE_PROTOCOL   # guid = &LOADED_IMAGE_PROTOCOL
     4C89C9          ; mov_rcx,r9                                   # arg1 = image_handle
     50              ; push_rax                                     # allocate stack for image
     4989E0          ; mov_r8,rsp                                   # arg3 = &image
@@ -171,7 +171,7 @@ FF 01 00 00                             ; SizeOfRawData
 
     # Get root file system
     4D89F9          ; mov_r9,r15                                   # arg4 = image_handle
-    488D15 AD010000 ; lea_rdx,[rip+DWORD] %SIMPLE_FS_PROTOCOL      # guid = &SIMPLE_FS_PROTOCOL
+    488D15 9D010000 ; lea_rdx,[rip+DWORD] %SIMPLE_FS_PROTOCOL      # guid = &SIMPLE_FS_PROTOCOL
     488B4F 18       ; mov_rcx,[rdi+BYTE] !24                       # arg1 = root_device = image->device
     4989CD          ; mov_r13,rcx                                  # save root_device
     50              ; push_rax                                     # allocate stack for rootfs
@@ -250,7 +250,7 @@ FF 01 00 00                             ; SizeOfRawData
 
 # :loop [_start+0xDE]
     # Read a byte
-    E8 79000000     ; call %read_byte
+    E8 72000000     ; call %read_byte
 
     # process byte
     E8 1C000000     ; call %hex
@@ -277,7 +277,7 @@ FF 01 00 00                             ; SizeOfRawData
     # flip the toggle
     FFCB            ; dec_ebx                     # rbx = -1
 
-    E8 39000000     ; call %write_byte
+    E8 3B000000     ; call %write_byte
 
     EB DA           ; jmp !loop
 
@@ -292,85 +292,80 @@ FF 01 00 00                             ; SizeOfRawData
 
     # deal all ascii less than '0'
     3C 30           ; cmp_al, !48
-    7C 1F           ; jl !ascii_other
+    7C 21           ; jl !ascii_other
 
     # deal with 0-9
     3C 3A           ; cmp_al, !58
-    7C 1F           ; jl !ascii_num
+    7C 21           ; jl !ascii_num
 
     # deal with all ascii less than 'A'
     3C 41           ; cmp_al, !65
-    7C 17           ; jl !ascii_other
+    7C 19           ; jl !ascii_other
 
     # deal with 'A'-'F'
     3C 47           ; cmp_al, !71
-    7C 1C           ; jl !ascii_high
+    7C 1E           ; jl !ascii_high
 
     # deal with all ascii less than 'a'
     3C 61           ; cmp_al, !97
-    7C 0F           ; jl !ascii_other
+    7C 11           ; jl !ascii_other
 
     #deal with 'a'-'f'
     3C 67           ; cmp_al, !103
-    7C 12           ; jl !ascii_low
+    7C 14           ; jl !ascii_low
 
     # The rest that remains needs to be ignored
-    EB 09           ; jmp !ascii_other
+    EB 0B           ; jmp !ascii_other
 
 # :purge_comment [_start+0x126]
-    # Read a byte
-    E8 31000000     ; call %read_byte
+    53              ; push_rbx                    # align stack to 16 bytes
+    E8 29000000     ; call %read_byte             # Read a byte
+    5B              ; pop_rbx                     # deallocate stack
 
     # Loop if not LF
     3C 0A           ; cmp_al, !10
-    75 F7           ; jne !purge_comment
+    75 F5           ; jne !purge_comment
 
     # Otherwise return -1
 
-# :ascii_other [_start+0x12F]
+# :ascii_other [_start+0x131]
     6A FF           ; push !-1
     58              ; pop_rax                     # return = -1
     C3              ; ret
 
-# :ascii_num [_start+0x133]
+# :ascii_num [_start+0x135]
     2C 30           ; sub_al, !48
     C3              ; ret
 
-# :ascii_low [_start+0x136]
+# :ascii_low [_start+0x138]
     2C 20           ; sub_al, !32                 # convert to uppercase
 
-# :ascii_high [_start+0x138]
+# :ascii_high [_start+0x13A]
     2C 37           ; sub_al, !55
     C3              ; ret
 
 # Writes byte stored in al
-# :write_byte [_start+0x13B]
-    54              ; push_rsp                    # align stack to 16 bytes
-    FF3424          ; push_[rsp]                  # align stack to 16 bytes
-    4883E4 F0       ; and_rsp, !-16               # align stack to 16 bytes
+# :write_byte [_start+0x13D]
     4C89E9          ; mov_rcx,r13                 # arg1 = fout
     6A 01           ; push !1                     # size = 1
     4889E2          ; mov_rdx,rsp                 # arg2 = &size
     50              ; push_rax                    # allocate stack
     4989E0          ; mov_r8,rsp                  # arg3 = &output
-    4883EC 20       ; sub_rsp, !32                # allocate shadow stack space for UEFI function
+    4883EC 28       ; sub_rsp, !40                # allocate shadow stack space for UEFI function
     FF51 28         ; call_[rcx+BYTE] !40         # fout->write()
-    488B6424 38     ; mov_rsp,[rsp+BYTE] !56      # deallocate stack
+    4883C4 38       ; add_rsp, !56                # deallocate stack
 
     C3              ; ret                         # return
 
-# :read_byte [_start+0x15C]
+# :read_byte [_start+0x155]
     4C89E1          ; mov_rcx,r12                 # arg1 = fin
     6A 01           ; push !1                     # size = 1
     4889E2          ; mov_rdx,rsp                 # arg2 = &size
     6A 00           ; push_rsi                    # allocate stack
     4989E0          ; mov_r8,rsp                  # arg3 = &input
-    54              ; push_rsp                    # align stack to 16 bytes
-    FF3424          ; push_[rsp]                  # align stack to 16 bytes
-    4883E4 F0       ; and_rsp, !-16               # align stack to 16 bytes
-    4883EC 20       ; sub_rsp, !32                # allocate shadow stack space for UEFI function
+    4883EC 28       ; sub_rsp, !40                # allocate shadow stack space for UEFI function
     FF51 20         ; call_[rcx+BYTE] !32         # fin->read()
-    488B6424 28     ; mov_rsp,[rsp+BYTE] !40      # deallocate stack
+    4883C4 28       ; add_rsp, !40                # deallocate stack
     58              ; pop_rax                     # save input to rax
     5E              ; pop_rsi                     # save size to rsi
 
@@ -380,7 +375,7 @@ FF 01 00 00                             ; SizeOfRawData
 
     C3              ; ret                         # return
 
-# :terminate [_start+0x184]
+# :terminate [_start+0x174]
     58              ; pop_rax                     # deallocate stack (return code of read_byte)
     5E              ; pop_rsi                     # restore rootdir
     415E            ; pop_r14                     # restore system->boot
@@ -422,16 +417,16 @@ FF 01 00 00                             ; SizeOfRawData
 
 
 # Protocol GUIDs
-# :LOADED_IMAGE_PROTOCOL [_start+0x1DF]
+# :LOADED_IMAGE_PROTOCOL [_start+0x1CF]
     A1 31 1B 5B             ; %0x5b1b31a1
     62 95                   ; $0x9562
     D2 11                   ; $0x11d2
     8E 3F 00 A0 C9 69 72 3B ; !0x8e !0x3f !0 !0xa0 !0xc9 !0x69 !0x72 !0x3b
 
-# :SIMPLE_FS_PROTOCOL [_start+0x1EF]
+# :SIMPLE_FS_PROTOCOL [_start+0x1DF]
     22 5B 4E 96             ; %0x964e5b22
     59 64                   ; $0x6459
     D2 11                   ; $0x11d2
     8E 39 00 A0 C9 69 72 3B ; !0x8e !0x39 !0 !0xa0 !0xc9 !0x69 !0x72 !0x3b
 
-# :ELF_end [_start+0x1FF]
+# :ELF_end [_start+0x1EF]
