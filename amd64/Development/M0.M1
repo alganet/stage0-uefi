@@ -14,6 +14,7 @@ DEFINE add_rax,rcx 4801C8
 DEFINE add_r12,rax 4901C4
 DEFINE add_rbx,[rdi+BYTE] 48035F
 DEFINE and_rax, 4883E0
+DEFINE and_rsp, 4883E4
 DEFINE cmp_al, 3C
 DEFINE cmp_rax, 483D
 DEFINE cmp_rbx, 4881FB
@@ -66,6 +67,7 @@ DEFINE mov_rdx,rbx 4889DA
 DEFINE mov_rdx,rsp 4889E2
 DEFINE mov_rsp,rbp 4889EC
 DEFINE mov_r8,rsp 4989E0
+DEFINE mov_r8,r12 4D89E0
 DEFINE mov_r12,rax 4989C4
 DEFINE mov_r13,rax 4989C5
 DEFINE mov_r13,rdx 4989D5
@@ -100,6 +102,7 @@ DEFINE mov_rbx,[rcx+BYTE] 488B59
 DEFINE mov_rbx,[rdi+BYTE] 488B5F
 DEFINE mov_rcx,[rax+BYTE] 488B48
 DEFINE mov_rcx,[rdi+BYTE] 488B4F
+DEFINE mov_rsp,[rsp+BYTE] 488B6424
 DEFINE mov_r14,[rdx+BYTE] 4C8B72
 DEFINE mov_rcx,[rip+DWORD] 488B0D
 DEFINE mov_r8,[rip+DWORD] 4C8B05
@@ -116,20 +119,33 @@ DEFINE movzx_rbx,bl 480FB6DB
 DEFINE movzx_rcx,cl 480FB6C9
 DEFINE popf 9D
 DEFINE pop_rax 58
+DEFINE pop_rbp 5D
 DEFINE pop_rbx 5B
 DEFINE pop_rcx 59
+DEFINE pop_rdi 5F
 DEFINE pop_rdx 5A
+DEFINE pop_rsi 5E
 DEFINE pop_r8 4158
 DEFINE pop_r9 4159
-DEFINE pop_rsi 5E
+DEFINE pop_r12 415C
+DEFINE pop_r13 415D
+DEFINE pop_r14 415E
+DEFINE pop_r15 415F
 DEFINE push 6A
 DEFINE pushf 9C
 DEFINE push_rax 50
+DEFINE push_rbp 55
 DEFINE push_rbx 53
 DEFINE push_rcx 51
+DEFINE push_rdi 57
 DEFINE push_rdx 52
 DEFINE push_rsi 56
+DEFINE push_rsp 54
 DEFINE push_r12 4154
+DEFINE push_r13 4155
+DEFINE push_r14 4156
+DEFINE push_r15 4157
+DEFINE push_[rsp] FF3424
 DEFINE ret C3
 DEFINE ror_r9 49D1C9
 DEFINE shl_rax, 48C1E0
@@ -162,7 +178,17 @@ DEFINE xor_r13,r13 4D31ED
 
 # efi_main(void *image_handle, struct efi_system_table *system)
 :_start
+    # Save non-volatile registers
+    push_rbp
+    push_rbx
+    push_rdi
+    push_rsi
+    push_r12
+    push_r13
+    push_r14
+    push_r15
     mov_rbp,rsp                        # save stack pointer
+
     mov_[rip+DWORD],rcx %image_handle  # save image_handle
     mov_r14,[rdx+BYTE] !96             # system->boot
 
@@ -183,11 +209,9 @@ DEFINE xor_r13,r13 4D31ED
 
     # Get root directory
     lea_rdx,[rip+DWORD] %rootdir       # arg2 = &rootdir
-    push_rax                           # allocate shadow stack space for UEFI function
-    push_rax                           # allocate shadow stack space for UEFI function
+    sub_rsp, !40                       # allocate shadow stack space for UEFI function
     call_[rcx+BYTE] !8                 # rootfs->open_volume(rootfs, &rootdir)
-    pop_rax                            # deallocate stack
-    pop_rax                            # deallocate stack
+    add_rsp, !40                       # deallocate stack
 
     # Push command line arguments onto stack
     mov_rbx,[rdi+BYTE] !56             # options = image->load_options
@@ -207,8 +231,11 @@ DEFINE xor_r13,r13 4D31ED
     jmp8 !loop_options                 # next argument
 :loop_options_done
 
-    # Open file for reading
     pop_r8                             # arg3 = in
+    pop_r12                            # file out
+    and_rsp, !-16                      # align stack to 16 bytes
+
+    # Open file for reading
     push !1                            # Set exit code in case of failure
     cmp_r8, !0                         # If NULL
     je %failed_input                   # then exit
@@ -224,7 +251,7 @@ DEFINE xor_r13,r13 4D31ED
     add_rsp, !48                       # deallocate stack
 
     # Open file for writing
-    pop_r8                             # arg3 = out
+    mov_r8,r12                         # arg3 = out
     push !1                            # Set exit code in case of failure
     cmp_r8, !0                         # If NULL
     je %failed_output                  # then exit
@@ -295,10 +322,19 @@ DEFINE xor_r13,r13 4D31ED
     mov_rcx,r8                                 # arg1 = image_handle
     call %close_protocol                       # close protocol
 
-    pop_rax                            # restore exit code
+    pop_rax                     # restore exit code
 
-    mov_rsp,rbp                        # restore stack
-    ret                                # return to UEFI
+    # Restore non-volatile registers
+    mov_rsp,rbp
+    pop_r15
+    pop_r14
+    pop_r13
+    pop_r12
+    pop_rsi
+    pop_rdi
+    pop_rbx
+    pop_rbp
+    ret                         # return to UEFI
 
 
 # Tokenize_Line Function
@@ -363,13 +399,12 @@ DEFINE xor_r13,r13 4D31ED
     xor_esi,esi                 # zero rsi
     push_rsi                    # allocate stack
     mov_r8,rsp                  # arg3 = &input
-    push_rax                    # allocate shadow stack space for UEFI function
-    push_rax                    # allocate shadow stack space for UEFI function
-    push_rax                    # allocate shadow stack space for UEFI function
+    push_rsp                    # align stack to 16 bytes
+    push_[rsp]                  # align stack to 16 bytes
+    and_rsp, !-16               # align stack to 16 bytes
+    sub_rsp, !32                # allocate shadow stack space for UEFI
     call_[rcx+BYTE] !32         # fin->read()
-    pop_rax                     # deallocate stack
-    pop_rax                     # deallocate stack
-    pop_rax                     # deallocate stack
+    mov_rsp,[rsp+BYTE] !40      # deallocate stack
     pop_rax                     # save input to rax
     pop_rsi                     # save size to rsi
 
@@ -1063,29 +1098,33 @@ DEFINE xor_r13,r13 4D31ED
 # receives CHAR in RAX
 # writes char and returns
 :fputc
-    push_rcx                           # Protect RCX
-    push_rdx                           # Protect RDX
-    mov_rcx,[rip+DWORD] %fout          # arg1 = fout
-    push !1                            # set size
-    mov_rdx,rsp                        # arg2 = &size
-    push_rax                           # allocate stack
-    mov_r8,rsp                         # arg3 = &output
-    push_rax                           # allocate shadow stack space for UEFI function
-    push_rax                           # allocate shadow stack space for UEFI function
-    push_rax                           # allocate shadow stack space for UEFI function
-    call_[rcx+BYTE] !40                # fout->write()
-    add_rsp, !40                       # deallocate stack
+    push_rcx                    # Protect RCX
+    push_rdx                    # Protect RDX
+    push_rsp                    # align stack to 16 bytes
+    push_[rsp]                  # align stack to 16 bytes
+    and_rsp, !-16               # align stack to 16 bytes
+    mov_rcx,[rip+DWORD] %fout   # arg1 = fout
+    push !1                     # set size
+    mov_rdx,rsp                 # arg2 = &size
+    push_rax                    # allocate stack
+    mov_r8,rsp                  # arg3 = &output
+    sub_rsp, !32                # allocate shadow stack space for UEFI function
+    call_[rcx+BYTE] !40         # fout->write()
+    mov_rsp,[rsp+BYTE] !56      # deallocate stack
 
-    pop_rdx                            # Restore RDX
-    pop_rcx                            # Restore RCX
-    ret                                # return
+    pop_rdx                     # Restore RDX
+    pop_rcx                     # Restore RCX
+    ret                         # return
 
 
 # rcx: file handle
 :close_file
-    push_rax                           # allocate shadow stack space for UEFI function
-    call_[rcx+BYTE] !16                # file_handle->close(file_handle)
-    pop_rax                            # deallocate stack
+    push_rsp                    # align stack to 16 bytes
+    push_[rsp]                  # align stack to 16 bytes
+    and_rsp, !-16               # align stack to 16 bytes
+    sub_rsp, !32                # allocate shadow stack space for UEFI function
+    call_[rcx+BYTE] !16         # file_handle->close(file_handle)
+    mov_rsp,[rsp+BYTE] !40      # deallocate stack
     ret
 
 # rcx: handle
@@ -1093,60 +1132,72 @@ DEFINE xor_r13,r13 4D31ED
 # r9: agent_handle
 # returns interface
 :open_protocol
-    push_rax                           # allocate stack for interface
-    mov_r8,rsp                         # arg3 = &interface
-    push !1                            # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
-    push !0                            # arg5 = NULL
-    sub_rsp, !32                       # allocate shadow stack space for UEFI function
-    call_[r14+DWORD] %280              # system->boot->open_protocol(handle, &guid, &interface, agent_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
-    add_rsp, !48                       # deallocate stack
-    pop_rax                            # get interface
+    push_rax                    # allocate stack for interface
+    mov_r8,rsp                  # arg3 = &interface
+    push_rsp                    # align stack to 16 bytes
+    push_[rsp]                  # align stack to 16 bytes
+    and_rsp, !-16               # align stack to 16 bytes
+    push !1                     # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
+    push !0                     # arg5 = NULL
+    sub_rsp, !32                # allocate shadow stack space for UEFI function
+    call_[r14+DWORD] %280       # system->boot->open_protocol(handle, &guid, &interface, agent_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
+    mov_rsp,[rsp+BYTE] !56      # deallocate stack
+    pop_rax                     # get interface
     ret
 
 # rcx: handle
 # rdx: &guid
 # r8: agent_handle
 :close_protocol
-    xor_r9,r9                          # arg4 = NULL
-    sub_rsp, !32                       # allocate shadow stack space for UEFI function
-    call_[r14+DWORD] %288              # system->boot->close_protocol(handle, &guid, agent_handle, 0)
-    add_rsp, !32                       # deallocate stack
+    push_rsp                    # align stack to 16 bytes
+    push_[rsp]                  # align stack to 16 bytes
+    and_rsp, !-16               # align stack to 16 bytes
+    xor_r9,r9                   # arg4 = NULL
+    sub_rsp, !32                # allocate shadow stack space for UEFI function
+    call_[r14+DWORD] %288       # system->boot->close_protocol(handle, &guid, agent_handle, 0)
+    mov_rsp,[rsp+BYTE] !40      # deallocate stack
     ret
 
 # rdx: number of bytes to allocate
 # r14: system->boot
 # returns pointer in rax
 :allocate_pool
-    push_rdx                           # allocate stack for pool pointer
-    mov_r8,rsp                         # arg3 = &pool
+    push_rdx                    # allocate stack for pool pointer
+    mov_r8,rsp                  # arg3 = &pool
     push !2
-    pop_rcx                            # arg1 = EFI_LOADER_DATA
-    sub_rsp, !24                       # allocate shadow stack space for UEFI
-    call_[r14+BYTE] !64                # system->boot->allocate_pool(EFI_LOADER_DATA, 2048, &pool)
-    add_rsp, !24                       # deallocate stack
-    pop_rax                            # get pool
+    pop_rcx                     # arg1 = EFI_LOADER_DATA
+    push_rsp                    # align stack to 16 bytes
+    push_[rsp]                  # align stack to 16 bytes
+    and_rsp, !-16               # align stack to 16 bytes
+    sub_rsp, !32                # allocate shadow stack space for UEFI
+    call_[r14+BYTE] !64         # system->boot->allocate_pool(EFI_LOADER_DATA, 2048, &pool)
+    mov_rsp,[rsp+BYTE] !40      # deallocate stack
+    pop_rax                     # get pool
     ret
 
 # rcx: memory pool
 # r14: system->boot
 :free_pool
-    push_rax                           # allocate shadow stack space for UEFI function
-    call_[r14+BYTE] !72                # system->boot->free_pool(pool)
-    pop_rax                            # deallocate stack
+    push_rsp                    # align stack to 16 bytes
+    push_[rsp]                  # align stack to 16 bytes
+    and_rsp, !-16               # align stack to 16 bytes
+    sub_rsp, !32                # allocate shadow stack space for UEFI
+    call_[r14+BYTE] !72         # system->boot->free_pool(pool)
+    mov_rsp,[rsp+BYTE] !40      # deallocate stack
     ret
 
 
 # Protocol GUIDs
 :LOADED_IMAGE_PROTOCOL
     %0x5B1B31A1
-    @0x9562
-    @0x11D2
+    $0x9562
+    $0x11D2
     !0x8E !0x3F !0 !0xA0 !0xC9 !0x69 !0x72 !0x3B
 
 :SIMPLE_FS_PROTOCOL
     %0x964E5B22
-    @0x6459
-    @0x11D2
+    $0x6459
+    $0x11D2
     !0x8E !0x39 !0 !0xA0 !0xC9 !0x69 !0x72 !0x3B
 
 :malloc_pool

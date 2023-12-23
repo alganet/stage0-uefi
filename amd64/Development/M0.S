@@ -26,7 +26,17 @@
 
 # efi_main(void *image_handle, struct efi_system_table *system)
 _start:
+    # Save non-volatile registers
+    push rbp
+    push rbx
+    push rdi
+    push rsi
+    push r12
+    push r13
+    push r14
+    push r15
     mov rbp, rsp                       # save stack pointer
+
     mov [rip+image_handle], rcx        # save image_handle
     mov r14, [rdx+96]                  # system->boot
 
@@ -47,11 +57,9 @@ _start:
 
     # Get root directory
     lea rdx, [rip+rootdir]             # arg2 = &rootdir
-    push rax                           # allocate shadow stack space for UEFI function
-    push rax                           # allocate shadow stack space for UEFI function
+    sub rsp, 40                        # allocate shadow stack space for UEFI function
     call [rcx+8]                       # rootfs->open_volume(rootfs, &rootdir)
-    pop rax                            # deallocate stack
-    pop rax                            # deallocate stack
+    add rsp, 40                        # deallocate stack
 
     # Push command line arguments onto stack
     mov rbx, [rdi+56]                  # options = image->load_options
@@ -71,8 +79,11 @@ loop_options:
     jmp loop_options                   # next argument
 loop_options_done:
 
-    # Open file for reading
     pop r8                             # arg3 = in
+    pop r12                            # file out
+    and rsp, -16                       # align stack to 16 bytes
+
+    # Open file for reading
     push 1                             # Set exit code in case of failure
     cmp r8, 0                          # If NULL
     je failed_input                    # then exit
@@ -88,7 +99,7 @@ loop_options_done:
     add rsp, 48                        # deallocate stack
 
     # Open file for writing
-    pop r8                             # arg3 = out
+    mov r8, r12                        # arg3 = out
     push 1                             # Set exit code in case of failure
     cmp r8, 0                          # If NULL
     je failed_output                   # then exit
@@ -162,7 +173,17 @@ failed_input:
     pop rax                            # restore exit code
 
 abort: # used for debugging only
-    mov rsp, rbp                       # restore stack
+
+    # Restore non-volatile registers
+    mov rsp, rbp
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rsi
+    pop rdi
+    pop rbx
+    pop rbp
     ret                                # return to UEFI
 
 
@@ -228,13 +249,12 @@ fgetc:
     xor esi, esi                # zero rsi
     push rsi                    # allocate stack
     mov r8, rsp                 # arg3 = &input
-    push rax                    # allocate shadow stack space for UEFI function
-    push rax                    # allocate shadow stack space for UEFI function
-    push rax                    # allocate shadow stack space for UEFI function
+    push rsp                    # align stack to 16 bytes
+    push [rsp]                  # align stack to 16 bytes
+    and rsp, -16                # align stack to 16 bytes
+    sub rsp, 32                 # allocate shadow stack space for UEFI
     call [rcx+32]               # fin->read()
-    pop rax                     # deallocate stack
-    pop rax                     # deallocate stack
-    pop rax                     # deallocate stack
+    mov rsp, [rsp+40]           # deallocate stack
     pop rax                     # save input to rax
     pop rsi                     # save size to rsi
 
@@ -930,16 +950,17 @@ File_Print_Done:
 fputc:
     push rcx                    # Protect RCX
     push rdx                    # Protect RDX
+    push rsp                    # align stack to 16 bytes
+    push [rsp]                  # align stack to 16 bytes
+    and rsp, -16                # align stack to 16 bytes
     mov rcx, [rip+fout]         # arg1 = fout
     push 1                      # set size
     mov rdx, rsp                # arg2 = &size
     push rax                    # allocate stack
     mov r8, rsp                 # arg3 = &output
-    push rax                    # allocate shadow stack space for UEFI function
-    push rax                    # allocate shadow stack space for UEFI function
-    push rax                    # allocate shadow stack space for UEFI function
+    sub rsp, 32                 # allocate shadow stack space for UEFI
     call [rcx+40]               # fout->write()
-    add rsp, 40                 # deallocate stack
+    mov rsp, [rsp+56]           # deallocate stack
 
     pop rdx                     # Restore RDX
     pop rcx                     # Restore RCX
@@ -948,9 +969,12 @@ fputc:
 
 # rcx: file handle
 close_file:
-    push rax                    # allocate shadow stack space for UEFI function
+    push rsp                    # align stack to 16 bytes
+    push [rsp]                  # align stack to 16 bytes
+    and rsp, -16                # align stack to 16 bytes
+    sub rsp, 32                 # allocate shadow stack space for UEFI function
     call [rcx+16]               # file_handle->close(file_handle)
-    pop rax                     # deallocate stack
+    mov rsp, [rsp+40]           # deallocate stack
     ret
 
 # rcx: handle
@@ -960,11 +984,14 @@ close_file:
 open_protocol:
     push rax                    # allocate stack for interface
     mov r8, rsp                 # arg3 = &interface
+    push rsp                    # align stack to 16 bytes
+    push [rsp]                  # align stack to 16 bytes
+    and rsp, -16                # align stack to 16 bytes
     push 1                      # arg6 = EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL
     push 0                      # arg5 = NULL
     sub rsp, 32                 # allocate shadow stack space for UEFI function
     call [r14+280]              # system->boot->open_protocol(handle, &guid, &interface, agent_handle, 0, EFI_OPEN_PROTOCOL_BY_HANDLE_PROTOCOL)
-    add rsp, 48                 # deallocate stack
+    mov rsp, [rsp+56]           # deallocate stack
     pop rax                     # get interface
     ret
 
@@ -972,10 +999,13 @@ open_protocol:
 # rdx: &guid
 # r8: agent_handle
 close_protocol:
+    push rsp                    # align stack to 16 bytes
+    push [rsp]                  # align stack to 16 bytes
+    and rsp, -16                # align stack to 16 bytes
     xor r9, r9                  # arg4 = NULL
     sub rsp, 32                 # allocate shadow stack space for UEFI function
     call [r14+288]              # system->boot->close_protocol(handle, &guid, agent_handle, 0)
-    add rsp, 32                 # deallocate stack
+    mov rsp, [rsp+40]           # deallocate stack
     ret
 
 # rdx: number of bytes to allocate
@@ -986,18 +1016,24 @@ allocate_pool:
     mov r8, rsp                 # arg3 = &pool
     push 2
     pop rcx                     # arg1 = EFI_LOADER_DATA
-    sub rsp, 24                 # allocate shadow stack space for UEFI
+    push rsp                    # align stack to 16 bytes
+    push [rsp]                  # align stack to 16 bytes
+    and rsp, -16                # align stack to 16 bytes
+    sub rsp, 32                 # allocate shadow stack space for UEFI
     call [r14+64]               # system->boot->allocate_pool(EFI_LOADER_DATA, 2048, &pool)
-    add rsp, 24                 # deallocate stack
+    mov rsp, [rsp+40]           # deallocate stack
     pop rax                     # get pool
     ret
 
 # rcx: memory pool
 # r14: system->boot
 free_pool:
-    push rax                    # allocate shadow stack space for UEFI function
+    push rsp                    # align stack to 16 bytes
+    push [rsp]                  # align stack to 16 bytes
+    and rsp, -16                # align stack to 16 bytes
+    sub rsp, 32                 # allocate shadow stack space for UEFI function
     call [r14+72]               # system->boot->free_pool(pool)
-    pop rax                     # deallocate stack
+    mov rsp, [rsp+40]           # deallocate stack
     ret
 
 
