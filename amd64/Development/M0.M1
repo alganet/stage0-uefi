@@ -402,7 +402,7 @@ DEFINE xor_r13,r13 4D31ED
     push_rsp                    # align stack to 16 bytes
     push_[rsp]                  # align stack to 16 bytes
     and_rsp, !-16               # align stack to 16 bytes
-    sub_rsp, !32                # allocate shadow stack space for UEFI
+    sub_rsp, !32                # allocate shadow stack space for UEFI function
     call_[rcx+BYTE] !32         # fin->read()
     mov_rsp,[rsp+BYTE] !40      # deallocate stack
     pop_rax                     # save input to rax
@@ -1169,7 +1169,7 @@ DEFINE xor_r13,r13 4D31ED
     push_rsp                    # align stack to 16 bytes
     push_[rsp]                  # align stack to 16 bytes
     and_rsp, !-16               # align stack to 16 bytes
-    sub_rsp, !32                # allocate shadow stack space for UEFI
+    sub_rsp, !32                # allocate shadow stack space for UEFI function
     call_[r14+BYTE] !64         # system->boot->allocate_pool(EFI_LOADER_DATA, 2048, &pool)
     mov_rsp,[rsp+BYTE] !40      # deallocate stack
     pop_rax                     # get pool
@@ -1181,7 +1181,7 @@ DEFINE xor_r13,r13 4D31ED
     push_rsp                    # align stack to 16 bytes
     push_[rsp]                  # align stack to 16 bytes
     and_rsp, !-16               # align stack to 16 bytes
-    sub_rsp, !32                # allocate shadow stack space for UEFI
+    sub_rsp, !32                # allocate shadow stack space for UEFI function
     call_[r14+BYTE] !72         # system->boot->free_pool(pool)
     mov_rsp,[rsp+BYTE] !40      # deallocate stack
     ret

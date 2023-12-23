@@ -379,7 +379,7 @@
 
 :File_Print
     488B0D %system_out ; mov_rcx,[rip+DWORD] %system_out # get system_out
-    4883EC 28       ; sub_rsp, !40                     # allocate shadow stack space for UEFI
+    4883EC 28       ; sub_rsp, !40                     # allocate shadow stack space for UEFI function
     FF51 08         ; call_[rcx+BYTE] !8               # system->out->output_string(system->out, WCHAR*)
     4883C4 28       ; add_rsp, !40                     # deallocate stack
     C3              ; ret

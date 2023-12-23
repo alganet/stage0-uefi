@@ -218,7 +218,7 @@ allocate_pool:
         push rsp                           # align stack to 16 bytes
         push [rsp]                         # align stack to 16 bytes
         and rsp, -16                       # align stack to 16 bytes
-        sub rsp, 32                        # allocate shadow stack space for UEFI
+        sub rsp, 32                        # allocate shadow stack space for UEFI function
         call [r14+64]                      # system->boot->allocate_pool(EFI_LOADER_DATA, 2048, &pool)
         mov rsp, [rsp+40]                  # deallocate stack
         pop rax                            # get pool
@@ -247,7 +247,7 @@ read:
         push rsp                           # align stack to 16 bytes
         push [rsp]                         # align stack to 16 bytes
         and rsp, -16                       # align stack to 16 bytes
-        sub rsp, 32                        # allocate shadow stack space for UEFI
+        sub rsp, 32                        # allocate shadow stack space for UEFI function
         call [rcx+32]                      # fin->read()
         mov rsp, [rsp+40]                  # deallocate stack
         pop rax                            # save size to rax
@@ -265,7 +265,7 @@ write:
         push rsp                           # align stack to 16 bytes
         push [rsp]                         # align stack to 16 bytes
         and rsp, -16                       # align stack to 16 bytes
-        sub rsp, 32                        # allocate shadow stack space for UEFI
+        sub rsp, 32                        # allocate shadow stack space for UEFI function
         call [rcx+40]                      # fin->write()
         mov rsp, [rsp+40]                  # deallocate stack
         pop rax                            # save size to rax

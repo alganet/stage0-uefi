@@ -254,7 +254,7 @@ F0 00                           # SizeOfOptionalHeader
     4153            ; push_r11                    # Protect r11
     488B0D %0       ; mov_rcx,[rip+DWORD] %fin    # Using our input file
     31D2            ; xor_edx,edx                 # Offset Zero
-    4883EC 28       ; sub_rsp, !40                # allocate shadow stack space for UEFI
+    4883EC 28       ; sub_rsp, !40                # allocate shadow stack space for UEFI function
     FF51 38         ; call_[rcx+BYTE] !56         # fin->set_position(fin, 0)
     4883C4 28       ; add_rsp, !40                # deallocate stack
     415B            ; pop_r11                     # restore r11
@@ -817,7 +817,7 @@ F0 00                           # SizeOfOptionalHeader
     54              ; push_rsp                    # align stack to 16 bytes
     FF3424          ; push_[rsp]                  # align stack to 16 bytes
     4883E4 F0       ; and_rsp, !-16               # align stack to 16 bytes
-    4883EC 20       ; sub_rsp, !32                # allocate shadow stack space for UEFI
+    4883EC 20       ; sub_rsp, !32                # allocate shadow stack space for UEFI function
     41FF56 40       ; call_[r14+BYTE] !64         # system->boot->allocate_pool(EFI_LOADER_DATA, 2048, &pool)
     488B6424 28     ; mov_rsp,[rsp+BYTE] !40      # deallocate stack
     58              ; pop_rax                     # get pool

@@ -123,7 +123,7 @@ loop_options_done:
         mov dh, 0x8                        # arg2 = 256 * 8 = 2048 = 0x800
         push 2
         pop rcx                            # arg1 = EFI_LOADER_DATA
-        sub rsp, 32                        # allocate shadow stack space for UEFI
+        sub rsp, 32                        # allocate shadow stack space for UEFI function
         call [r14+64]                      # system->boot->allocate_pool(EFI_LOADER_DATA, 2048, &table)
         add rsp, 32                        # deallocate stack
 
@@ -135,7 +135,7 @@ loop_options_done:
         # rewind input file
         mov rcx, rdi                       # Using our input file
         xor edx, edx                       # Offset Zero
-        sub rsp, 32                        # allocate shadow stack space for UEFI
+        sub rsp, 32                        # allocate shadow stack space for UEFI function
         call [rcx+56]                      # fin->set_position(fin, 0)
         add rsp, 32                        # deallocate stack
 

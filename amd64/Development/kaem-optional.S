@@ -51,7 +51,7 @@ _start:
 
         # Get root directory
         lea rdx, [rip+rootdir]            # arg2 = &rootdir
-        sub rsp, 32                       # allocate shadow stack space for UEFI
+        sub rsp, 32                       # allocate shadow stack space for UEFI function
         call [rcx+8]                      # rootfs->open_volume(rootfs, &rootdir)
         add rsp, 32                       # deallocate stack
 

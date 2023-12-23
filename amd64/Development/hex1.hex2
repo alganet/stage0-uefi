@@ -119,7 +119,7 @@
     B6 08           ; mov_dh, !0x8                # arg2 = 256 * 8 = 2048 = 0x800
     6A 02           ; push !2
     59              ; pop_rcx                     # arg1 = EFI_LOADER_DATA
-    4883EC 20       ; sub_rsp, !32                # allocate shadow stack space for UEFI
+    4883EC 20       ; sub_rsp, !32                # allocate shadow stack space for UEFI function
     41FF56 40       ; call_[r14+BYTE] !64         # system->boot->allocate_pool(EFI_LOADER_DATA, 2048, &table)
     4883C4 20       ; add_rsp, !32                # deallocate stack
 
@@ -131,7 +131,7 @@
     # rewind input file
     4889F9          ; mov_rcx,rdi                 # Using our input file
     31D2            ; xor_edx,edx                 # Offset Zero
-    4883EC 20       ; sub_rsp, !32                # allocate shadow stack space for UEFI
+    4883EC 20       ; sub_rsp, !32                # allocate shadow stack space for UEFI function
     FF51 38         ; call_[rcx+BYTE] !56         # fin->set_position(fin, 0)
     4883C4 20       ; add_rsp, !32                # deallocate stack
 

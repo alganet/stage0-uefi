@@ -1014,7 +1014,7 @@
     54              ; push_rsp                    # align stack to 16 bytes
     FF3424          ; push_[rsp]                  # align stack to 16 bytes
     4883E4 F0       ; and_rsp, !-16               # align stack to 16 bytes
-    4883EC 20       ; sub_rsp, !32                # allocate shadow stack space for UEFI
+    4883EC 20       ; sub_rsp, !32                # allocate shadow stack space for UEFI function
     41FF56 40       ; call_[r14+BYTE] !64         # system->boot->allocate_pool(EFI_LOADER_DATA, 2048, &pool)
     488B6424 28     ; mov_rsp,[rsp+BYTE] !40      # deallocate stack
     58              ; pop_rax                     # get pool
@@ -1026,7 +1026,7 @@
     54              ; push_rsp                    # align stack to 16 bytes
     FF3424          ; push_[rsp]                  # align stack to 16 bytes
     4883E4 F0       ; and_rsp, !-16               # align stack to 16 bytes
-    4883EC 20       ; sub_rsp, !32                # allocate shadow stack space for UEFI
+    4883EC 20       ; sub_rsp, !32                # allocate shadow stack space for UEFI function
     41FF56 48       ; call_[r14+BYTE] !72         # system->boot->free_pool(pool)
     488B6424 28     ; mov_rsp,[rsp+BYTE] !40      # deallocate stack
     C3              ; ret
