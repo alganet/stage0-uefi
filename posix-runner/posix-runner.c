@@ -10,6 +10,8 @@
 #include <unistd.h>
 #include <bootstrappable.h>
 
+#include "syscalls.c"
+
 #define MSR_EFER 0x60000080 + 0x60000000
 #define MSR_STAR 0x60000081 + 0x60000000
 #define MSR_LSTAR 0x60000082 + 0x60000000
@@ -48,19 +50,12 @@ ulong rdmsrl(unsigned msr)
     );
 }
 
-void _entry_syscall(long rcx, long rax, long rdi)
+void _entry_syscall(long syscall, long arg1)
 {
-    fputs("Return address: 0x", stderr);
-    fputs(int2str(rcx, 16, FALSE), stderr);
-    fputc('\n', stderr);
-    fputs("Syscall number: ", stderr);
-    fputs(int2str(rax, 10, FALSE), stderr);
-    fputc('\n', stderr);
-    fputs("Argument 1: ", stderr);
-    fputs(int2str(rdi, 10, FALSE), stderr);
-    fputc('\n', stderr);
-
-    exit(rdi);
+    FUNCTION *process_syscall = syscall_table[syscall];
+    if(process_syscall != NULL) {
+        process_syscall(arg1);
+    }
 }
 
 void entry_syscall()
@@ -73,12 +68,10 @@ void entry_syscall()
         "push_rbp"
         "mov_rbx,rdi"
         "mov_rdi,rsp"
-        "push_rcx"
         "push_rax"
         "push_rbx"
         "mov_rbp,rdi"
         "call %FUNCTION__entry_syscall"
-        "pop_rbx"
         "pop_rbx"
         "pop_rbx"
         "pop_rdi"
@@ -126,6 +119,8 @@ int main(int argc, char **argv)
     wrmsrl(MSR_STAR, msr_star);
     wrmsrl(MSR_EFER, msr_efer);
     wrmsrl(MSR_LSTAR, entry_syscall);
+
+    init_syscalls();
     jump();
 
     return 1;
