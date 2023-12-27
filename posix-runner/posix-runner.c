@@ -23,6 +23,24 @@ int extract_field(char *file_data, int position, int length)
     return data;
 }
 
+void jump(void *start_address, int argc, char **argv)
+{
+    char *temp;
+    unsigned i;
+    for (i = argc; i > 0; i -= 1) {
+        temp = argv[i];
+        asm("push_rax");
+    }
+
+    asm("lea_rax,[rbp+DWORD] %-16"
+        "mov_rax,[rax]"
+        "push_rax"
+        "lea_rcx,[rbp+DWORD] %-8"
+        "mov_rcx,[rcx]"
+        "jmp_rcx"
+    );
+}
+
 void wrmsr(unsigned msr, int low, int high)
 {
     asm("lea_rcx,[rbp+DWORD] %-8"
@@ -50,40 +68,61 @@ ulong rdmsrl(unsigned msr)
     );
 }
 
-void _entry_syscall(long syscall, long arg1)
+void _entry_syscall(long syscall, long arg1, long arg2, long arg3, long arg4, long arg5, long arg6)
 {
     FUNCTION *process_syscall = syscall_table[syscall];
     if(process_syscall != NULL) {
-        process_syscall(arg1);
+        return process_syscall(arg1, arg2, arg3, arg4, arg5, arg6);
     }
+    /* Unsupported syscall */
+    return 0;
 }
 
 void entry_syscall()
 {
+    /* Fix SS register */
     asm("push_rax"
         "mov_rax, %0x30"
         "mov_ss,eax"
         "pop_rax"
-        "push_rdi"
-        "push_rbp"
-        "mov_rbx,rdi"
-        "mov_rdi,rsp"
-        "push_rax"
-        "push_rbx"
-        "mov_rbp,rdi"
-        "call %FUNCTION__entry_syscall"
-        "pop_rbx"
-        "pop_rbx"
-        "pop_rdi"
     );
+    /* Save registers */
+    asm("push_rcx"
+        "push_rbx"
+        "push_rbp"
+    );
+    asm("mov_rbp,rsp"
+        "push_rax"
+        "push_rdi"
+        "push_rsi"
+        "push_rdx"
+        "push_r10"
+        "push_r8"
+        "push_r9"
+        "call %FUNCTION__entry_syscall"
+        "pop_r9"
+        "pop_r8"
+        "pop_r10"
+        "pop_rdx"
+        "pop_rsi"
+        "pop_rdi"
+        "pop_rbx" /* rax is return code, do not overwrite it */
+    );
+    /* Restore registers */
+    asm("pop_rbp"
+        "pop_rbx"
+        "pop_rcx"
+    );
+    /* Jump back to POSIX program */
+    asm("jmp_rcx");
 }
 
 int main(int argc, char **argv)
 {
-    if (argc != 2) {
+    if (argc < 2) {
         fputs("Usage: ", stderr);
         fputs(argv[0], stderr);
-        fputs(" <elf file>\n", stderr);
+        fputs(" <elf file> [arguments]\n", stderr);
         exit(1);
     }
 
@@ -109,7 +148,7 @@ int main(int argc, char **argv)
     int entry_point = extract_field(file_data, 24, 8);
     int header_table = extract_field(file_data, 32, 8);
     int base_address = extract_field(file_data, header_table + 0x10, 8);
-    FUNCTION jump = entry_point - base_address + file_data;
+    void *start_address = entry_point - base_address + file_data;
 
     ulong msr_efer = rdmsrl(MSR_EFER);
     msr_efer |= 1; /* Enable syscalls */
@@ -121,7 +160,7 @@ int main(int argc, char **argv)
     wrmsrl(MSR_LSTAR, entry_syscall);
 
     init_syscalls();
-    jump();
+    jump(start_address, argc - 1, argv);
 
     return 1;
 }
