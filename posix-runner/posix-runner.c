@@ -90,6 +90,10 @@ void entry_syscall()
     asm("push_rcx"
         "push_rbx"
         "push_rbp"
+        "push_r12"
+        "push_r13"
+        "push_r14"
+        "push_r15"
     );
     asm("mov_rbp,rsp"
         "push_rax"
@@ -109,7 +113,11 @@ void entry_syscall()
         "pop_rbx" /* rax is return code, do not overwrite it */
     );
     /* Restore registers */
-    asm("pop_rbp"
+    asm("pop_r15"
+        "pop_r14"
+        "pop_r13"
+        "pop_r12"
+        "pop_rbp"
         "pop_rbx"
         "pop_rcx"
     );
