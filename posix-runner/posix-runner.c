@@ -134,7 +134,7 @@ int main(int argc, char **argv)
 
     /* Load binary into memory */
     int file_size = fseek(file_in, 0, SEEK_END);
-    char *file_data = malloc(file_size);
+    char *file_data = calloc(file_size + 0x1000); /* Allocate extra space in case application tries to use it */
     rewind(file_in);
     fread(file_data, 1, file_size, file_in);
     fclose(file_in);
