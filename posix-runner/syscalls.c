@@ -49,6 +49,11 @@ void sys_exit(unsigned value, void, void, void, void, void)
     exit(value);
 }
 
+int sys_mkdir(char const* a, mode_t b, void, void, void, void)
+{
+    return mkdir(a, b);
+}
+
 void init_syscalls()
 {
     syscall_table = calloc(256, sizeof(void*));
@@ -58,4 +63,5 @@ void init_syscalls()
     syscall_table[8] = sys_lseek;
     syscall_table[12] = sys_brk;
     syscall_table[60] = sys_exit;
+    syscall_table[83] = sys_mkdir;
 }
