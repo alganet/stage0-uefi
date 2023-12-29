@@ -23,9 +23,16 @@ int extract_field(char *file_data, int position, int length)
     return data;
 }
 
-void jump(void *start_address, int argc, char **argv)
+void jump(void *start_address, int argc, char **argv, char **envp)
 {
     char *temp;
+    for (; *envp != 0; envp += sizeof(char *))
+    {
+        temp = *envp;
+        asm("push_rax");
+    }
+    asm("push !0");
+
     unsigned i;
     for (i = argc; i > 0; i -= 1) {
         temp = argv[i];
@@ -125,7 +132,7 @@ void entry_syscall()
     asm("jmp_rcx");
 }
 
-int main(int argc, char **argv)
+int main(int argc, char **argv, char **envp)
 {
     if (argc < 2) {
         fputs("Usage: ", stderr);
@@ -168,7 +175,7 @@ int main(int argc, char **argv)
     wrmsrl(MSR_LSTAR, entry_syscall);
 
     init_syscalls();
-    jump(start_address, argc - 1, argv);
+    jump(start_address, argc - 1, argv, envp);
 
     return 1;
 }
