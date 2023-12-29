@@ -32,6 +32,11 @@ int sys_lseek(int fd, int offset, int whence, void, void, void)
     return lseek(fd, offset, whence);
 }
 
+int sys_access(char* pathname, int mode, void, void, void, void)
+{
+    return access(pathname, mode);
+}
+
 int sys_brk(void* addr, void, void, void, void, void)
 {
     if (_brk == NULL) {
@@ -54,6 +59,16 @@ void sys_exit(unsigned value, void, void, void, void, void)
     exit(value);
 }
 
+int sys_getcwd(char* buf, int size, void, void, void, void)
+{
+    return getcwd(buf, size);
+}
+
+int sys_chdir(char* path, void, void, void, void, void)
+{
+    return chdir(path);
+}
+
 int sys_mkdir(char const* a, mode_t b, void, void, void, void)
 {
     return mkdir(a, b);
@@ -73,7 +88,10 @@ void init_syscalls()
     syscall_table[3] = sys_close;
     syscall_table[8] = sys_lseek;
     syscall_table[12] = sys_brk;
+    syscall_table[21] = sys_access;
     syscall_table[60] = sys_exit;
+    syscall_table[79] = sys_getcwd;
+    syscall_table[80] = sys_chdir;
     syscall_table[83] = sys_mkdir;
     syscall_table[87] = sys_unlink;
 }
