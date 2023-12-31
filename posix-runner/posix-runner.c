@@ -258,9 +258,14 @@ int sys_unlink(char* filename, void, void, void, void, void)
     return unlink(filename);
 }
 
+int sys_chroot(char const *path)
+{
+    return chroot(path);
+}
+
 void init_syscalls()
 {
-    syscall_table = calloc(256, sizeof(void *));
+    syscall_table = calloc(300, sizeof(void *));
     syscall_table[0] = sys_read;
     syscall_table[1] = sys_write;
     syscall_table[2] = sys_open;
@@ -278,6 +283,7 @@ void init_syscalls()
     syscall_table[81] = sys_fchdir;
     syscall_table[83] = sys_mkdir;
     syscall_table[87] = sys_unlink;
+    syscall_table[161] = sys_chroot;
 }
 
 void wrmsr(unsigned msr, int low, int high)
