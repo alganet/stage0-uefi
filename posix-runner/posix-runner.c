@@ -228,6 +228,11 @@ int sys_wait4(int pid, int* status_ptr, int options)
     return 0;
 }
 
+int sys_uname(struct utsname* unameData)
+{
+    return uname(unameData);
+}
+
 int sys_getcwd(char* buf, int size, void, void, void, void)
 {
     return getcwd(buf, size);
@@ -236,6 +241,11 @@ int sys_getcwd(char* buf, int size, void, void, void, void)
 int sys_chdir(char* path, void, void, void, void, void)
 {
     return chdir(path);
+}
+
+int sys_fchdir(int fd, void, void, void, void, void)
+{
+    return fchdir(fd);
 }
 
 int sys_mkdir(char const* a, mode_t b, void, void, void, void)
@@ -262,8 +272,10 @@ void init_syscalls()
     syscall_table[59] = sys_execve;
     syscall_table[60] = sys_exit;
     syscall_table[61] = sys_wait4;
+    syscall_table[63] = sys_uname;
     syscall_table[79] = sys_getcwd;
     syscall_table[80] = sys_chdir;
+    syscall_table[81] = sys_fchdir;
     syscall_table[83] = sys_mkdir;
     syscall_table[87] = sys_unlink;
 }
