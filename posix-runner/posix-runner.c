@@ -197,13 +197,8 @@ int sys_execve(char* file_name, char** argv, char** envp, void, void, void)
     }
     current_process->entry_point = entry_point(current_process->program.address);
 
-    char** iter = argv;
     int argc;
-    while(*iter != 0) {
-        iter += sizeof(char *);
-        argc += 1;
-    }
-
+    for(argc = 0; argv[argc] != 0; argc += 1) {}
     jump(current_process->entry_point, argc, argv, envp);
 }
 
