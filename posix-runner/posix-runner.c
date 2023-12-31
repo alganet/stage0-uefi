@@ -84,7 +84,7 @@ void* entry_point(char* raw_elf)
     return entry_point - base_address + raw_elf;
 }
 
-void jump(void* start_address, int argc, char** argv, char** envp)
+void jump(void* start_address, int argc, int argc0, char** argv, char** envp)
 {
     current_process->stack = get_stack();
     char* temp;
@@ -93,9 +93,8 @@ void jump(void* start_address, int argc, char** argv, char** envp)
         temp = *envp;
         asm("push_rax");
     }
-    asm("push !0");
-    unsigned i;
-    for (i = argc; i > 0; i -= 1) {
+    int i;
+    for (i = argc; i >= argc0; i -= 1) {
         temp = argv[i];
         asm("push_rax");
     }
@@ -199,7 +198,7 @@ int sys_execve(char* file_name, char** argv, char** envp, void, void, void)
 
     int argc;
     for(argc = 0; argv[argc] != 0; argc += 1) {}
-    jump(current_process->entry_point, argc, argv, envp);
+    jump(current_process->entry_point, argc, 0, argv, envp);
 }
 
 void sys_exit(unsigned value, void, void, void, void, void)
@@ -391,7 +390,8 @@ int main(int argc, char** argv, char** envp)
     wrmsrl(MSR_LSTAR, entry_syscall);
 
     init_syscalls();
-    jump(current_process->entry_point, argc - 1, argv, envp);
+    int argc0 = 1; /* skip argv[0] since it contains the name of efi binary */
+    jump(current_process->entry_point, argc, argc0, argv, envp);
 
     return 1;
 }
