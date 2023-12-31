@@ -120,8 +120,6 @@ int sys_write(int fd, char* buf, unsigned count, void, void, void)
 
 int sys_open(char* name, int flag, int mode, void, void, void)
 {
-    fputs(name, stderr);
-    fputc('\n', stderr);
     return open(name, flag, mode);
 }
 
@@ -209,12 +207,12 @@ void sys_exit(unsigned value, void, void, void, void, void)
     current_process->parent->child_exit_code = value;
     struct process* child = current_process;
     current_process = current_process->parent;
-    // free(child); // FIXME
+    free(child);
 
     memcpy(current_process->saved_stack_pointer, current_process->saved_stack.address, current_process->saved_stack.length);
     memcpy(current_process->memory, current_process->saved_memory.address, current_process->saved_memory.length);
-    // free(current_process->saved_stack); // FIXME
-    // free(current_process->saved_memory); // FIXME
+    free(current_process->saved_stack);
+    free(current_process->saved_memory);
     current_process->brk = current_process->saved_brk;
     current_process->saved_stack_pointer;
     /* Simulate return from sys_fork() */
