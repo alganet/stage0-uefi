@@ -30,7 +30,6 @@ struct process {
     void* saved_brk;
     void* stack;
     void* saved_stack_pointer;
-    void* memory;
     mem_block program;
     mem_block saved_stack;
     mem_block saved_memory;
@@ -38,6 +37,8 @@ struct process {
     int forked;
 };
 struct process* current_process;
+
+void* _brk;
 
 void* _get_stack()
 {
@@ -138,12 +139,7 @@ int sys_lseek(int fd, int offset, int whence, void, void, void)
 int sys_brk(void* addr, void, void, void, void, void)
 {
     if (current_process->brk == NULL) {
-        current_process->brk = calloc(1, MAX_MIB_PER_PROC * 1024 * 1024);
-        if (current_process->brk == NULL) {
-            fputs("Could not allocate memory for brk region.", stderr);
-            return addr;
-        }
-        current_process->memory = current_process->brk;
+        current_process->brk = _brk;
     }
     if (addr == NULL) {
         return current_process->brk;
@@ -171,13 +167,13 @@ int sys_fork(void, void, void, void, void, void)
         exit(1);
     }
     memcpy(current_process->saved_stack.address, current_process->saved_stack_pointer, current_process->saved_stack.length);
-    current_process->saved_memory.length = current_process->brk - current_process->memory;
+    current_process->saved_memory.length = current_process->brk - _brk;
     current_process->saved_memory.address = malloc(current_process->saved_memory.length);
     if (current_process->saved_stack.address == NULL ) {
         fputs("Could not allocate memory for saved process memory.", stderr);
         exit(1);
     }
-    memcpy(current_process->saved_memory.address, current_process->memory, current_process->saved_memory.length);
+    memcpy(current_process->saved_memory.address, _brk, current_process->saved_memory.length);
 
     return 0; /* return as child */
 }
@@ -185,7 +181,8 @@ int sys_fork(void, void, void, void, void, void)
 int sys_execve(char* file_name, char** argv, char** envp, void, void, void)
 {
     if (current_process->forked) {
-        struct process* new = calloc(1, sizeof(struct process));
+        struct process* new;
+        new = calloc(1, sizeof(struct process));
         if (new == NULL) {
             fputs("Could not allocate memory for new process metadata.", stderr);
             exit(1);
@@ -220,12 +217,13 @@ void sys_exit(unsigned value, void, void, void, void, void)
         exit(value);
     }
     current_process->parent->child_exit_code = value;
-    struct process* child = current_process;
+    struct process* child;
+    child = current_process;
     current_process = current_process->parent;
     free(child);
 
     memcpy(current_process->saved_stack_pointer, current_process->saved_stack.address, current_process->saved_stack.length);
-    memcpy(current_process->memory, current_process->saved_memory.address, current_process->saved_memory.length);
+    memcpy(_brk, current_process->saved_memory.address, current_process->saved_memory.length);
     free(current_process->saved_stack.address);
     free(current_process->saved_memory.address);
     current_process->brk = current_process->saved_brk;
@@ -404,17 +402,23 @@ int main(int argc, char** argv, char** envp)
         exit(2);
     }
 
-    current_process = calloc(1, sizeof(process));
+    current_process = calloc(1, sizeof(struct process));
     if (current_process == NULL) {
         fputs("Could not allocate memory for current process metadata.", stderr);
-        exit(1);
+        exit(3);
+    }
+
+    _brk = malloc(MAX_MIB_PER_PROC * 1024 * 1024);
+    if (_brk == NULL) {
+        fputs("Could not allocate memory brk area.", stderr);
+        exit(4);
     }
 
     /* Load binary into memory */
     int rval = load_elf(file_in, current_process);
     if (rval == 1) {
         fputs("ELF magic header was not found.\n", stderr);
-        exit(3);
+        exit(5);
     }
 
     current_process->entry_point = entry_point(current_process->program.address);
