@@ -16,9 +16,7 @@
 
 void* syscall_table;
 
-#define MAX_PROC 16
 #define MAX_MIB_PER_PROC 128
-#define MAX_SAVED_MIB 1024
 
 struct mem_block {
     void* address;
@@ -49,7 +47,7 @@ void* _get_stack()
 void* get_stack()
 {
     /* Adjust to stack depth of _get_stack function */
-    return _get_stack() + (7 * sizeof(void*));
+    return _get_stack() + (7 * sizeof(void *));
 }
 
 int extract_field(char* file_data, int position, int length)
@@ -63,6 +61,10 @@ int load_elf(FILE* file_in, struct process* current)
 {
     int file_size = fseek(file_in, 0, SEEK_END);
     char* file_data = calloc(1, file_size + 0x1000); /* Allocate extra space in case application tries to use it */
+    if (file_data == NULL) {
+        fputs("Could not allocate memory to load ELF file.", stderr);
+        exit(1);
+    }
     rewind(file_in);
     fread(file_data, 1, file_size, file_in);
     fclose(file_in);
@@ -138,6 +140,7 @@ int sys_brk(void* addr, void, void, void, void, void)
     if (current_process->brk == NULL) {
         current_process->brk = calloc(1, MAX_MIB_PER_PROC * 1024 * 1024);
         if (current_process->brk == NULL) {
+            fputs("Could not allocate memory for brk region.", stderr);
             return addr;
         }
         current_process->memory = current_process->brk;
@@ -163,9 +166,17 @@ int sys_fork(void, void, void, void, void, void)
     current_process->forked = TRUE;
     current_process->saved_stack.length = current_process->stack - current_process->saved_stack_pointer;
     current_process->saved_stack.address = malloc(current_process->saved_stack.length);
+    if (current_process->saved_stack.address == NULL ) {
+        fputs("Could not allocate memory for saved process stack.", stderr);
+        exit(1);
+    }
     memcpy(current_process->saved_stack.address, current_process->saved_stack_pointer, current_process->saved_stack.length);
     current_process->saved_memory.length = current_process->brk - current_process->memory;
     current_process->saved_memory.address = malloc(current_process->saved_memory.length);
+    if (current_process->saved_stack.address == NULL ) {
+        fputs("Could not allocate memory for saved process memory.", stderr);
+        exit(1);
+    }
     memcpy(current_process->saved_memory.address, current_process->memory, current_process->saved_memory.length);
 
     return 0; /* return as child */
@@ -174,7 +185,11 @@ int sys_fork(void, void, void, void, void, void)
 int sys_execve(char* file_name, char** argv, char** envp, void, void, void)
 {
     if (current_process->forked) {
-        struct process* new = calloc(1, sizeof(process));
+        struct process* new = calloc(1, sizeof(struct process));
+        if (new == NULL) {
+            fputs("Could not allocate memory for new process metadata.", stderr);
+            exit(1);
+        }
         new->parent = current_process;
         current_process->forked = FALSE; /* fork was handled */
         current_process = new;
@@ -211,8 +226,8 @@ void sys_exit(unsigned value, void, void, void, void, void)
 
     memcpy(current_process->saved_stack_pointer, current_process->saved_stack.address, current_process->saved_stack.length);
     memcpy(current_process->memory, current_process->saved_memory.address, current_process->saved_memory.length);
-    free(current_process->saved_stack);
-    free(current_process->saved_memory);
+    free(current_process->saved_stack.address);
+    free(current_process->saved_memory.address);
     current_process->brk = current_process->saved_brk;
     current_process->saved_stack_pointer;
     /* Simulate return from sys_fork() */
@@ -266,6 +281,10 @@ int sys_chroot(char const *path)
 void init_syscalls()
 {
     syscall_table = calloc(300, sizeof(void *));
+    if (syscall_table == NULL) {
+        fputs("Could not allocate memory for syscall table.", stderr);
+        exit(1);
+    }
     syscall_table[0] = sys_read;
     syscall_table[1] = sys_write;
     syscall_table[2] = sys_open;
@@ -316,7 +335,7 @@ ulong rdmsrl(unsigned msr)
 void _entry_syscall(long syscall, long arg1, long arg2, long arg3, long arg4, long arg5, long arg6)
 {
     FUNCTION process_syscall = syscall_table[syscall];
-    if(process_syscall != NULL) {
+    if (process_syscall != NULL) {
         return process_syscall(arg1, arg2, arg3, arg4, arg5, arg6);
     }
     /* Unsupported syscall */
@@ -386,6 +405,10 @@ int main(int argc, char** argv, char** envp)
     }
 
     current_process = calloc(1, sizeof(process));
+    if (current_process == NULL) {
+        fputs("Could not allocate memory for current process metadata.", stderr);
+        exit(1);
+    }
 
     /* Load binary into memory */
     int rval = load_elf(file_in, current_process);
