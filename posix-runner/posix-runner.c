@@ -86,6 +86,7 @@ void* entry_point(char* raw_elf)
 
 void jump(void* start_address, int argc, int argc0, char** argv, char** envp)
 {
+    int argc_new;
     current_process->stack = get_stack();
     char* temp;
     asm("push !0");
@@ -98,11 +99,10 @@ void jump(void* start_address, int argc, int argc0, char** argv, char** envp)
         temp = argv[i];
         asm("push_rax");
     }
+    argc_new = argc - argc0;
+    asm("push_rax");
 
-    asm("lea_rax,[rbp+DWORD] %-16"
-        "mov_rax,[rax]"
-        "push_rax"
-        "lea_rcx,[rbp+DWORD] %-8"
+    asm("lea_rcx,[rbp+DWORD] %-8"
         "mov_rcx,[rcx]"
         "jmp_rcx"
     );
