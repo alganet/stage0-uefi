@@ -10,13 +10,13 @@
 #include <unistd.h>
 #include <bootstrappable.h>
 
-#define MSR_EFER 0x60000080 + 0x60000000
-#define MSR_STAR 0x60000081 + 0x60000000
-#define MSR_LSTAR 0x60000082 + 0x60000000
+#define MSR_EFER (0x60000080 + 0x60000000)
+#define MSR_STAR (0x60000081 + 0x60000000)
+#define MSR_LSTAR (0x60000082 + 0x60000000)
 
 void* syscall_table;
 
-#define MAX_MIB_PER_PROC 128
+#define MAX_MEMORY_PER_PROC (128 * 1024 * 1024)
 
 struct mem_block {
     void* address;
@@ -408,7 +408,7 @@ int main(int argc, char** argv, char** envp)
         exit(3);
     }
 
-    _brk = malloc(MAX_MIB_PER_PROC * 1024 * 1024);
+    _brk = calloc(1, MAX_MEMORY_PER_PROC);
     if (_brk == NULL) {
         fputs("Could not allocate memory brk area.", stderr);
         exit(4);
