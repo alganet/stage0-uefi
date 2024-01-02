@@ -410,7 +410,7 @@ int main(int argc, char** argv, char** envp)
 
     _brk = calloc(1, MAX_MEMORY_PER_PROC);
     if (_brk == NULL) {
-        fputs("Could not allocate memory brk area.", stderr);
+        fputs("Could not allocate memory for brk area.", stderr);
         exit(4);
     }
 
