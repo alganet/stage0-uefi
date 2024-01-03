@@ -17,8 +17,7 @@
 void* syscall_table;
 
 #define MAX_MEMORY_PER_PROC (128 * 1024 * 1024)
-#define __FILEDES_MAX 32
-// 4096
+#define __FILEDES_MAX 4096
 
 struct mem_block {
     void* address;
