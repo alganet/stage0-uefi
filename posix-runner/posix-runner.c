@@ -17,6 +17,8 @@
 void* syscall_table;
 
 #define MAX_MEMORY_PER_PROC (128 * 1024 * 1024)
+#define __FILEDES_MAX 32
+// 4096
 
 struct mem_block {
     void* address;
@@ -35,6 +37,7 @@ struct process {
     mem_block saved_memory;
     int child_exit_code;
     int forked;
+    int fd_map[__FILEDES_MAX];
 };
 struct process* current_process;
 
@@ -111,29 +114,55 @@ void jump(void* start_address, int argc, int argc0, char** argv, char** envp)
     );
 }
 
+void init_io()
+{
+    current_process->fd_map[STDIN_FILENO] = STDIN_FILENO;
+    current_process->fd_map[STDOUT_FILENO] = STDOUT_FILENO;
+    current_process->fd_map[STDERR_FILENO] = STDERR_FILENO;
+}
+
+int find_free_fd()
+{
+    int i;
+    for (i = 3; i < __FILEDES_MAX; i += 1) {
+        if (current_process->fd_map[i] == NULL) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 int sys_read(int fd, char* buf, unsigned count, void, void, void)
 {
-    return read(fd, buf, count);
+    return read(current_process->fd_map[fd], buf, count);
 }
 
 int sys_write(int fd, char* buf, unsigned count, void, void, void)
 {
-    return write(fd, buf, count);
+    return write(current_process->fd_map[fd], buf, count);
 }
 
 int sys_open(char* name, int flag, int mode, void, void, void)
 {
-    return open(name, flag, mode);
+    int rval;
+    int fd;
+    rval = open(name, flag, mode);
+    fd = find_free_fd();
+    current_process->fd_map[fd] = rval;
+    return fd;
 }
 
 int sys_close(int fd, void, void, void, void, void)
 {
-    return close(fd);
+    int rval;
+    rval = close(current_process->fd_map[fd]);
+    current_process->fd_map[fd] = NULL;
+    return rval;
 }
 
 int sys_lseek(int fd, int offset, int whence, void, void, void)
 {
-    return lseek(fd, offset, whence);
+    return lseek(current_process->fd_map[fd], offset, whence);
 }
 
 int sys_brk(void* addr, void, void, void, void, void)
@@ -190,6 +219,7 @@ int sys_execve(char* file_name, char** argv, char** envp, void, void, void)
         new->parent = current_process;
         current_process->forked = FALSE; /* fork was handled */
         current_process = new;
+        init_io();
     }
     // else {
         // restore_stack(current_process->saved_stack); // FIXME
@@ -258,7 +288,7 @@ int sys_chdir(char* path, void, void, void, void, void)
 
 int sys_fchdir(int fd, void, void, void, void, void)
 {
-    return fchdir(fd);
+    return fchdir(current_process->fd_map[fd]);
 }
 
 int sys_mkdir(char const* a, mode_t b, void, void, void, void)
@@ -407,6 +437,7 @@ int main(int argc, char** argv, char** envp)
         fputs("Could not allocate memory for current process metadata.", stderr);
         exit(3);
     }
+    init_io();
 
     _brk = calloc(1, MAX_MEMORY_PER_PROC);
     if (_brk == NULL) {
