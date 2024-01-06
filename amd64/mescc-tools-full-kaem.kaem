@@ -36,7 +36,6 @@
 	-f ./M2libc/${ARCH}/${ARCH}_defs.M1 \
 	-f ./M2libc/${ARCH}/uefi/libc-full.M1 \
 	-f ./${ARCH_DIR}/artifact/M2-1.M1 \
-	-f ./${ARCH_DIR}/artifact/M2-1-footer.M1 \
 	-o ./${ARCH_DIR}/artifact/M2-1.hex2
 
 ./${ARCH_DIR}/bin/hex2.efi --architecture ${ARCH} \
