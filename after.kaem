@@ -1,0 +1,5 @@
+cd /posix-runner
+M2LIBC_PATH=${M2LIBC}
+PATH=${BINDIR}
+${BINDIR}/M2-Mesoplanet.efi --os UEFI --architecture ${ARCH} --file posix-runner.c --output ${BINDIR}/posix-runner.efi
+cd ..
