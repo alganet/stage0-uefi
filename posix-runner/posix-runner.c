@@ -94,12 +94,12 @@ void jump(void* start_address, int argc, int argc0, char** argv, char** envp)
     int argc_new;
     current_process->stack = get_stack();
     char* temp;
+    int i;
     asm("push !0");
     for (; *envp != 0; envp += sizeof(char *)) {
         temp = *envp;
         asm("push_rax");
     }
-    int i;
     for (i = argc; i >= argc0; i -= 1) {
         temp = argv[i];
         asm("push_rax");
