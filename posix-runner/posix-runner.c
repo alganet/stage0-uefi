@@ -37,6 +37,9 @@ struct process {
     int child_exit_code;
     int forked;
     int fd_map[__FILEDES_MAX];
+    int argc;
+    char **argv;
+    char **envp;
 };
 struct process* current_process;
 
@@ -89,22 +92,30 @@ void* entry_point(char* raw_elf)
     return entry_point - base_address + raw_elf;
 }
 
-void jump(void* start_address, int argc, int argc0, char** argv, char** envp)
+void jump(void* start_address, int argc, char** argv, char** envp)
 {
-    int argc_new;
-    current_process->stack = get_stack();
-    char* temp;
+    current_process->argc = argc;
+    current_process->argv = calloc(argc + 1, sizeof(char*));
     int i;
+    size_t length;
+    for (i = 0; i < argc; i += 1) {
+        length = strlen(argv[i]) + 1;
+        current_process->argv[i] = malloc(length);
+        memcpy(current_process->argv[i], argv[i], length);
+    }
+    current_process->argv[argc] = 0;
+
+    current_process->stack = get_stack();
     asm("push !0");
     for (; *envp != 0; envp += sizeof(char *)) {
-        temp = *envp;
+        *envp;
         asm("push_rax");
     }
-    for (i = argc; i >= argc0; i -= 1) {
-        temp = argv[i];
+    for (i = argc; i >= 0; i -= 1) {
+        current_process->argv[i];
         asm("push_rax");
     }
-    argc_new = argc - argc0;
+    argc;
     asm("push_rax");
 
     asm("lea_rcx,[rbp+DWORD] %-8"
@@ -173,6 +184,7 @@ int sys_brk(void* addr, void, void, void, void, void)
         return current_process->brk;
     }
     else {
+        memset(current_process->brk, 0, addr - current_process->brk);
         current_process->brk = addr;
         return current_process->brk;
     }
@@ -237,11 +249,17 @@ int sys_execve(char* file_name, char** argv, char** envp, void, void, void)
 
     int argc;
     for(argc = 0; argv[argc] != 0; argc += 1) {}
-    jump(current_process->entry_point, argc, 0, argv, envp);
+    jump(current_process->entry_point, argc, argv, envp);
 }
 
 void sys_exit(unsigned value, void, void, void, void, void)
 {
+    int i;
+    for (i = 0; i < current_process->argc; i += 1) {
+        free(current_process->argv[i]);
+    }
+    free(current_process->argv);
+
     if (current_process->parent == NULL) {
         exit(value);
     }
@@ -438,7 +456,7 @@ int main(int argc, char** argv, char** envp)
     }
     init_io();
 
-    _brk = calloc(1, MAX_MEMORY_PER_PROC);
+    _brk = malloc(MAX_MEMORY_PER_PROC);
     if (_brk == NULL) {
         fputs("Could not allocate memory for brk area.", stderr);
         exit(4);
@@ -464,7 +482,7 @@ int main(int argc, char** argv, char** envp)
 
     init_syscalls();
     int argc0 = 1; /* skip argv[0] since it contains the name of efi binary */
-    jump(current_process->entry_point, argc, argc0, argv, envp);
+    jump(current_process->entry_point, argc - 1, argv + sizeof(char *), envp);
 
     return 1;
 }
