@@ -38,6 +38,7 @@ struct process {
     int forked;
     int fd_map[__FILEDES_MAX];
     int argc;
+    int envc;
     char **argv;
     char **envp;
 };
@@ -94,8 +95,9 @@ void* entry_point(char* raw_elf)
 
 void jump(void* start_address, int argc, char** argv, char** envp)
 {
+    /* Make a copy of argv */
     current_process->argc = argc;
-    current_process->argv = calloc(argc + 1, sizeof(char*));
+    current_process->argv = calloc(argc + 1, sizeof(char *));
     int i;
     size_t length;
     for (i = 0; i < argc; i += 1) {
@@ -105,10 +107,24 @@ void jump(void* start_address, int argc, char** argv, char** envp)
     }
     current_process->argv[argc] = 0;
 
+    /* Make a copy of envp */
+    current_process->envc = 0;
+    char** e = envp;
+    for (; *e != 0; e += sizeof(char *)) {
+        current_process->envc += 1;
+    }
+    current_process->envp = calloc(current_process->envc + 1, sizeof(char *));
+    for (i = 0; i < current_process->envc; i += 1) {
+        length = strlen(envp[i]) + 1;
+        current_process->envp[i] = malloc(length);
+        memcpy(current_process->envp[i], envp[i], length);
+    }
+    current_process->envp[current_process->envc] = 0;
+
+    /* Prepare stack of the new executable */
     current_process->stack = get_stack();
-    asm("push !0");
-    for (; *envp != 0; envp += sizeof(char *)) {
-        *envp;
+    for (i = current_process->envc; i >= 0; i -= 1) {
+        current_process->envp[i];
         asm("push_rax");
     }
     for (i = argc; i >= 0; i -= 1) {
@@ -259,6 +275,10 @@ void sys_exit(unsigned value, void, void, void, void, void)
         free(current_process->argv[i]);
     }
     free(current_process->argv);
+    for (i = 0; i < current_process->envc; i += 1) {
+        free(current_process->envp[i]);
+    }
+    free(current_process->envp);
 
     if (current_process->parent == NULL) {
         exit(value);

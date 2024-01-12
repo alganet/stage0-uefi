@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-ESP_SIZE_MIB = 50
+ESP_SIZE_MIB = 350
 QEMU = qemu-system-x86_64
 QEMU_KVM = -enable-kvm
 
