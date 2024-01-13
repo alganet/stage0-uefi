@@ -15,6 +15,7 @@
 #define MSR_LSTAR (0x60000082 + 0x60000000)
 
 void* syscall_table;
+int prev_tpl;
 
 #define MAX_MEMORY_PER_PROC (768 * 1024 * 1024)
 #define __FILEDES_MAX 4096
@@ -407,7 +408,11 @@ void _entry_syscall(long syscall, long arg1, long arg2, long arg3, long arg4, lo
 {
     FUNCTION process_syscall = syscall_table[syscall];
     if (process_syscall != NULL) {
-        return process_syscall(arg1, arg2, arg3, arg4, arg5, arg6);
+        int rval;
+        __uefi_1(prev_tpl, _system->boot_services->restore_tpl);
+        rval = process_syscall(arg1, arg2, arg3, arg4, arg5, arg6);
+        __uefi_1(TPL_HIGH_LEVEL, _system->boot_services->raise_tpl);
+        return rval;
     }
     /* Unsupported syscall */
     return 0;
@@ -495,6 +500,7 @@ int main(int argc, char** argv, char** envp)
         exit(5);
     }
 
+    prev_tpl = __uefi_1(TPL_HIGH_LEVEL, _system->boot_services->raise_tpl);
     current_process->entry_point = entry_point(current_process->program.address);
 
     ulong msr_efer = rdmsrl(MSR_EFER);
