@@ -280,6 +280,12 @@ void sys_exit(unsigned value, void, void, void, void, void)
     }
     free(current_process->envp);
 
+    for (i = 3; i < __FILEDES_MAX; i += 1) {
+        if (current_process->fd_map[i] != NULL) {
+            sys_close(i, NULL, NULL, NULL, NULL, NULL);
+        }
+    }
+
     if (current_process->parent == NULL) {
         exit(value);
     }
