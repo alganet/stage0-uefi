@@ -175,6 +175,9 @@ int sys_open(char* name, int flag, int mode, void, void, void)
     int rval;
     int fd;
     rval = open(name, flag, mode);
+    if (rval == -1) {
+        return rval;
+    }
     fd = find_free_fd();
     current_process->fd_map[fd] = rval;
     return fd;
