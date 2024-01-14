@@ -33,6 +33,7 @@ struct process {
     void* stack;
     void* saved_stack_pointer;
     mem_block program;
+    mem_block saved_program;
     mem_block saved_stack;
     mem_block saved_memory;
     int child_exit_code;
@@ -217,6 +218,7 @@ int sys_fork(void, void, void, void, void, void)
     current_process->saved_brk = current_process->brk;
     current_process->saved_stack_pointer = get_stack();
     current_process->forked = TRUE;
+
     current_process->saved_stack.length = current_process->stack - current_process->saved_stack_pointer;
     current_process->saved_stack.address = malloc(current_process->saved_stack.length);
     if (current_process->saved_stack.address == NULL ) {
@@ -224,6 +226,7 @@ int sys_fork(void, void, void, void, void, void)
         exit(1);
     }
     memcpy(current_process->saved_stack.address, current_process->saved_stack_pointer, current_process->saved_stack.length);
+
     current_process->saved_memory.length = current_process->brk - _brk;
     current_process->saved_memory.address = malloc(current_process->saved_memory.length);
     if (current_process->saved_stack.address == NULL ) {
@@ -231,6 +234,14 @@ int sys_fork(void, void, void, void, void, void)
         exit(1);
     }
     memcpy(current_process->saved_memory.address, _brk, current_process->saved_memory.length);
+
+    current_process->saved_program.length = current_process->program.length;
+    current_process->saved_program.address = malloc(current_process->saved_program.length);
+    if (current_process->saved_program.address == NULL ) {
+        fputs("Could not allocate memory for saved process.", stderr);
+        exit(1);
+    }
+    memcpy(current_process->saved_program.address, current_process->program.address, current_process->saved_program.length);
 
     return 0; /* return as child */
 }
@@ -298,8 +309,10 @@ void sys_exit(unsigned value, void, void, void, void, void)
 
     memcpy(current_process->saved_stack_pointer, current_process->saved_stack.address, current_process->saved_stack.length);
     memcpy(_brk, current_process->saved_memory.address, current_process->saved_memory.length);
+    memcpy(current_process->program.address, current_process->saved_program.address, current_process->saved_program.length);
     free(current_process->saved_stack.address);
     free(current_process->saved_memory.address);
+    free(current_process->saved_program.address);
     current_process->brk = current_process->saved_brk;
     current_process->saved_stack_pointer;
     /* Simulate return from sys_fork() */
