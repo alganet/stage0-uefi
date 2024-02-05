@@ -71,7 +71,7 @@ int load_elf(FILE* file_in, struct process* current)
     int file_size = fseek(file_in, 0, SEEK_END);
     char* file_data = calloc(1, file_size + 0x1000); /* Allocate extra space in case application tries to use it */
     if (file_data == NULL) {
-        fputs("Could not allocate memory to load ELF file.", stderr);
+        fputs("Could not allocate memory to load ELF file.\n", stderr);
         exit(1);
     }
     rewind(file_in);
@@ -225,15 +225,15 @@ int sys_fork(void, void, void, void, void, void)
     current_process->saved_stack.length = current_process->stack - current_process->saved_stack_pointer;
     current_process->saved_stack.address = malloc(current_process->saved_stack.length);
     if (current_process->saved_stack.address == NULL ) {
-        fputs("Could not allocate memory for saved process stack.", stderr);
+        fputs("Could not allocate memory for saved process stack.\n", stderr);
         exit(1);
     }
     memcpy(current_process->saved_stack.address, current_process->saved_stack_pointer, current_process->saved_stack.length);
 
     current_process->saved_memory.length = current_process->brk - _brk;
     current_process->saved_memory.address = malloc(current_process->saved_memory.length);
-    if (current_process->saved_stack.address == NULL ) {
-        fputs("Could not allocate memory for saved process memory.", stderr);
+    if (current_process->saved_memory.address == NULL ) {
+        fputs("Could not allocate memory for saved process memory.\n", stderr);
         exit(1);
     }
     memcpy(current_process->saved_memory.address, _brk, current_process->saved_memory.length);
@@ -241,7 +241,7 @@ int sys_fork(void, void, void, void, void, void)
     current_process->saved_program.length = current_process->program.length;
     current_process->saved_program.address = malloc(current_process->saved_program.length);
     if (current_process->saved_program.address == NULL ) {
-        fputs("Could not allocate memory for saved process.", stderr);
+        fputs("Could not allocate memory for saved process.\n", stderr);
         exit(1);
     }
     memcpy(current_process->saved_program.address, current_process->program.address, current_process->saved_program.length);
@@ -255,7 +255,7 @@ int sys_execve(char* file_name, char** argv, char** envp, void, void, void)
         struct process* new;
         new = calloc(1, sizeof(struct process));
         if (new == NULL) {
-            fputs("Could not allocate memory for new process metadata.", stderr);
+            fputs("Could not allocate memory for new process metadata.\n", stderr);
             exit(1);
         }
         new->parent = current_process;
@@ -370,7 +370,7 @@ void init_syscalls()
 {
     syscall_table = calloc(300, sizeof(void *));
     if (syscall_table == NULL) {
-        fputs("Could not allocate memory for syscall table.", stderr);
+        fputs("Could not allocate memory for syscall table.\n", stderr);
         exit(1);
     }
     syscall_table[0] = sys_read;
@@ -498,14 +498,14 @@ int main(int argc, char** argv, char** envp)
 
     current_process = calloc(1, sizeof(struct process));
     if (current_process == NULL) {
-        fputs("Could not allocate memory for current process metadata.", stderr);
+        fputs("Could not allocate memory for current process metadata.\n", stderr);
         exit(3);
     }
     init_io();
 
     _brk = malloc(MAX_MEMORY_PER_PROC);
     if (_brk == NULL) {
-        fputs("Could not allocate memory for brk area.", stderr);
+        fputs("Could not allocate memory for brk area.\n", stderr);
         exit(4);
     }
 
