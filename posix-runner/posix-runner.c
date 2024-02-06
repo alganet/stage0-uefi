@@ -17,7 +17,8 @@
 void* syscall_table;
 int prev_tpl;
 
-#define MAX_MEMORY_PER_PROC (768 * 1024 * 1024)
+#define MAX_MEMORY_PER_PROC (1024 * 1024 * 1024)
+#define MAX_SAVED_PROCESS_MEMORY (1024 * 1024 * 1024)
 #define __FILEDES_MAX 4096
 
 struct mem_block {
@@ -47,6 +48,7 @@ struct process {
 struct process* current_process;
 
 void* _brk;
+void* _saved_memory;
 
 void* _get_stack()
 {
@@ -231,9 +233,8 @@ int sys_fork(void, void, void, void, void, void)
     memcpy(current_process->saved_stack.address, current_process->saved_stack_pointer, current_process->saved_stack.length);
 
     current_process->saved_memory.length = current_process->brk - _brk;
-    current_process->saved_memory.address = malloc(current_process->saved_memory.length);
-    if (current_process->saved_memory.address == NULL ) {
-        fputs("Could not allocate memory for saved process memory.\n", stderr);
+    if (_saved_memory + MAX_SAVED_PROCESS_MEMORY < current_process->saved_memory.address + current_process->saved_memory.length) {
+        fputs("Insufficient memory for saved process memory.\n", stderr);
         exit(1);
     }
     memcpy(current_process->saved_memory.address, _brk, current_process->saved_memory.length);
@@ -258,6 +259,7 @@ int sys_execve(char* file_name, char** argv, char** envp, void, void, void)
             fputs("Could not allocate memory for new process metadata.\n", stderr);
             exit(1);
         }
+        new->saved_memory.address = current_process->saved_memory.address + current_process->saved_memory.length;
         new->parent = current_process;
         current_process->forked = FALSE; /* fork was handled */
         current_process = new;
@@ -313,9 +315,8 @@ void sys_exit(unsigned value, void, void, void, void, void)
     memcpy(current_process->saved_stack_pointer, current_process->saved_stack.address, current_process->saved_stack.length);
     memcpy(_brk, current_process->saved_memory.address, current_process->saved_memory.length);
     memcpy(current_process->program.address, current_process->saved_program.address, current_process->saved_program.length);
-    free(current_process->saved_stack.address);
-    free(current_process->saved_memory.address);
     free(current_process->saved_program.address);
+    free(current_process->saved_stack.address);
     current_process->brk = current_process->saved_brk;
     current_process->saved_stack_pointer;
     /* Simulate return from sys_fork() */
@@ -503,6 +504,8 @@ int main(int argc, char** argv, char** envp)
     }
     init_io();
 
+    _saved_memory = malloc(MAX_SAVED_PROCESS_MEMORY);
+    current_process->saved_memory.address = _saved_memory;
     _brk = malloc(MAX_MEMORY_PER_PROC);
     if (_brk == NULL) {
         fputs("Could not allocate memory for brk area.\n", stderr);
