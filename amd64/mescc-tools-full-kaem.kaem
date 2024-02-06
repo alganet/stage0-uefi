@@ -16,6 +16,7 @@
 	-f ./M2libc/fcntl.c \
 	-f ./M2libc/stdio.h \
 	-f ./M2libc/stdio.c \
+	-f ./M2libc/sys/utsname.h \
 	-f ./M2libc/uefi/unistd.c \
 	-f ./M2libc/uefi/sys/stat.c \
 	-f ./M2libc/stdlib.c \
@@ -59,6 +60,7 @@ cd ${ARCH_DIR}
 	-f ../M2libc/fcntl.c \
 	-f ../M2libc/stdio.h \
 	-f ../M2libc/stdio.c \
+	-f ../M2libc/sys/utsname.h \
 	-f ../M2libc/uefi/unistd.c \
 	-f ../M2libc/uefi/sys/stat.c \
 	-f ../M2libc/stdlib.c \
@@ -100,6 +102,7 @@ cd ${ARCH_DIR}
 	-f ../M2libc/fcntl.c \
 	-f ../M2libc/stdio.h \
 	-f ../M2libc/stdio.c \
+	-f ../M2libc/sys/utsname.h \
 	-f ../M2libc/uefi/unistd.c \
 	-f ../M2libc/stdlib.c \
 	-f ../M2libc/ctype.c \
@@ -133,6 +136,7 @@ cd ${ARCH_DIR}
 	-f ../M2libc/fcntl.c \
 	-f ../M2libc/stdio.h \
 	-f ../M2libc/stdio.c \
+	-f ../M2libc/sys/utsname.h \
 	-f ../M2libc/uefi/unistd.c \
 	-f ../M2libc/stdlib.c \
 	-f ../M2libc/ctype.c \
