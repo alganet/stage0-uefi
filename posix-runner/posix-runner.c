@@ -10,6 +10,13 @@
 #include <unistd.h>
 #include <bootstrappable.h>
 
+#define PT_PRESENT 0
+#define PT_WRITABLE 1
+#define PT_HUGE_PAGE 7
+
+void* uefi_page_table;
+void* page_table;
+
 #define MSR_EFER (0x60000080 + 0x60000000)
 #define MSR_STAR (0x60000081 + 0x60000000)
 #define MSR_LSTAR (0x60000082 + 0x60000000)
@@ -49,6 +56,18 @@ struct process* current_process;
 
 void* _brk;
 void* _saved_memory;
+
+void* get_cr3()
+{
+    asm("mov_rax,cr3");
+}
+
+void set_cr3(long address)
+{
+    asm("lea_rax,[rbp+DWORD] %-8"
+    "mov_rax,[rax]"
+    "mov_cr3,rax");
+}
 
 void* _get_stack()
 {
@@ -427,7 +446,9 @@ void _entry_syscall(long syscall, long arg1, long arg2, long arg3, long arg4, lo
     if (process_syscall != NULL) {
         int rval;
         __uefi_1(prev_tpl, _system->boot_services->restore_tpl);
+        set_cr3(uefi_page_table);
         rval = process_syscall(arg1, arg2, arg3, arg4, arg5, arg6);
+        set_cr3(page_table);
         __uefi_1(TPL_HIGH_LEVEL, _system->boot_services->raise_tpl);
         return rval;
     }
@@ -484,6 +505,9 @@ void entry_syscall()
 
 int main(int argc, char** argv, char** envp)
 {
+    uefi_page_table = get_cr3();
+    page_table = uefi_page_table;
+
     if (argc < 2) {
         fputs("Usage: ", stderr);
         fputs(argv[0], stderr);
