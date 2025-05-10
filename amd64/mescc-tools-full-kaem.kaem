@@ -14,19 +14,21 @@
 	-f ./M2libc/string.c \
 	-f ./M2libc/uefi/fcntl.c \
 	-f ./M2libc/fcntl.c \
-	-f ./M2libc/stdio.h \
-	-f ./M2libc/stdio.c \
 	-f ./M2libc/sys/utsname.h \
-	-f ./M2libc/uefi/unistd.c \
 	-f ./M2libc/uefi/sys/stat.c \
-	-f ./M2libc/stdlib.c \
 	-f ./M2libc/ctype.c \
+	-f ./M2libc/stdarg.h \
+	-f ./M2libc/stdio.h \
+	-f ./M2libc/uefi/unistd.c \
+	-f ./M2libc/stdio.c \
+	-f ./M2libc/stdlib.c \
 	-f ./M2libc/bootstrappable.c \
 	-f ./M2-Planet/cc.h \
 	-f ./M2-Planet/cc_globals.c \
 	-f ./M2-Planet/cc_reader.c \
 	-f ./M2-Planet/cc_strings.c \
 	-f ./M2-Planet/cc_types.c \
+	-f ./M2-Planet/cc_emit.c \
 	-f ./M2-Planet/cc_core.c \
 	-f ./M2-Planet/cc_macro.c \
 	-f ./M2-Planet/cc.c \
@@ -58,13 +60,14 @@ cd ${ARCH_DIR}
 	-f ../M2libc/string.c \
 	-f ../M2libc/uefi/fcntl.c \
 	-f ../M2libc/fcntl.c \
-	-f ../M2libc/stdio.h \
-	-f ../M2libc/stdio.c \
 	-f ../M2libc/sys/utsname.h \
-	-f ../M2libc/uefi/unistd.c \
 	-f ../M2libc/uefi/sys/stat.c \
-	-f ../M2libc/stdlib.c \
 	-f ../M2libc/ctype.c \
+	-f ../M2libc/stdarg.h \
+	-f ../M2libc/stdio.h \
+	-f ../M2libc/uefi/unistd.c \
+	-f ../M2libc/stdio.c \
+	-f ../M2libc/stdlib.c \
 	-f ../M2libc/bootstrappable.c \
 	-f ../M2-Mesoplanet/cc.h \
 	-f ../M2-Mesoplanet/cc_globals.c \
@@ -100,12 +103,13 @@ cd ${ARCH_DIR}
 	-f ../M2libc/string.c \
 	-f ../M2libc/uefi/fcntl.c \
 	-f ../M2libc/fcntl.c \
-	-f ../M2libc/stdio.h \
-	-f ../M2libc/stdio.c \
 	-f ../M2libc/sys/utsname.h \
-	-f ../M2libc/uefi/unistd.c \
-	-f ../M2libc/stdlib.c \
 	-f ../M2libc/ctype.c \
+	-f ../M2libc/stdarg.h \
+	-f ../M2libc/stdio.h \
+	-f ../M2libc/uefi/unistd.c \
+	-f ../M2libc/stdio.c \
+	-f ../M2libc/stdlib.c \
 	-f ../M2libc/bootstrappable.c \
 	-f ../mescc-tools/get_machine.c \
 	-o artifact/get_machine.M1
@@ -134,12 +138,13 @@ cd ${ARCH_DIR}
 	-f ../M2libc/string.c \
 	-f ../M2libc/uefi/fcntl.c \
 	-f ../M2libc/fcntl.c \
-	-f ../M2libc/stdio.h \
-	-f ../M2libc/stdio.c \
 	-f ../M2libc/sys/utsname.h \
-	-f ../M2libc/uefi/unistd.c \
-	-f ../M2libc/stdlib.c \
 	-f ../M2libc/ctype.c \
+	-f ../M2libc/stdarg.h \
+	-f ../M2libc/stdio.h \
+	-f ../M2libc/uefi/unistd.c \
+	-f ../M2libc/stdio.c \
+	-f ../M2libc/stdlib.c \
 	-f ../M2libc/bootstrappable.c \
 	-f ../mescc-tools/stringify.c \
 	-f ../mescc-tools/blood-elf.c \

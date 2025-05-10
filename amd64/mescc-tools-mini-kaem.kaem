@@ -46,7 +46,7 @@ amd64\artifact\hex2-0.efi amd64\artifact\cc_amd64-0.hex2 amd64\artifact\cc_amd64
 #########################################
 # Phase-5 Build M2-Planet from cc_amd64 #
 #########################################
-amd64\artifact\catm.efi amd64\artifact\M2-0.c M2libc\amd64\uefi\bootstrap.c M2-Planet\cc.h M2libc\bootstrappable.c M2-Planet\cc_globals.c M2-Planet\cc_reader.c M2-Planet\cc_strings.c M2-Planet\cc_types.c M2-Planet\cc_core.c M2-Planet\cc_macro.c M2-Planet\cc.c
+amd64\artifact\catm.efi amd64\artifact\M2-0.c M2libc\amd64\uefi\bootstrap.c M2-Planet\cc.h M2libc\bootstrappable.c M2-Planet\cc_globals.c M2-Planet\cc_reader.c M2-Planet\cc_strings.c M2-Planet\cc_types.c M2-Planet\cc_emit.c M2-Planet\cc_core.c M2-Planet\cc_macro.c M2-Planet\cc.c
 amd64\artifact\cc_amd64.efi amd64\artifact\M2-0.c amd64\artifact\M2-0.M1
 amd64\artifact\catm.efi amd64\artifact\M2-0-0.M1 M2libc\amd64\amd64_defs.M1 M2libc\amd64\uefi\libc-core.M1 amd64\artifact\M2-0.M1
 amd64\artifact\M0.efi amd64\artifact\M2-0-0.M1 amd64\artifact\M2-0.hex2
@@ -71,7 +71,7 @@ amd64\artifact\hex2-0.efi amd64\artifact\M1-macro-0-0.hex2 amd64\artifact\M1-0.e
 #######################################
 # Phase-7 Build hex2-1 from C sources #
 #######################################
-amd64\artifact\M2.efi --architecture amd64 -f M2libc\sys\types.h -f M2libc\stddef.h -f M2libc\uefi\uefi.c -f M2libc\string.c -f M2libc\uefi\fcntl.c -f M2libc\fcntl.c -f M2libc/stdio.h -f M2libc\stdio.c -f M2libc\sys\utsname.h -f M2libc\uefi\unistd.c -f M2libc\uefi\sys\stat.c -f M2libc\stdlib.c -f M2libc\ctype.c -f M2libc\bootstrappable.c -f mescc-tools\hex2.h -f mescc-tools\hex2_linker.c -f mescc-tools\hex2_word.c -f mescc-tools\hex2.c -o amd64\artifact\hex2_linker-1.M1
+amd64\artifact\M2.efi --architecture amd64 -f M2libc\sys\types.h -f M2libc\stddef.h -f M2libc\uefi\uefi.c -f M2libc\string.c -f M2libc\uefi\fcntl.c -f M2libc\fcntl.c -f M2libc\sys\utsname.h -f M2libc\uefi\sys\stat.c -f M2libc\ctype.c -f M2libc\stdarg.h -f M2libc/stdio.h -f M2libc\stdio.c -f M2libc\uefi\unistd.c -f M2libc\stdlib.c -f M2libc\bootstrappable.c -f mescc-tools\hex2.h -f mescc-tools\hex2_linker.c -f mescc-tools\hex2_word.c -f mescc-tools\hex2.c -o amd64\artifact\hex2_linker-1.M1
 
 amd64\artifact\M1-0.efi --architecture amd64 --little-endian -f M2libc\amd64\amd64_defs.M1 -f M2libc\amd64\uefi\libc-full.M1 -f amd64\artifact\hex2_linker-1.M1 -o amd64\artifact\hex2_linker-1.hex2
 
@@ -85,7 +85,7 @@ amd64\artifact\hex2-0.efi amd64\artifact\hex2_linker-1-0.hex2 amd64\artifact\hex
 ###################################
 # Phase-8 Build M1 from C sources #
 ###################################
-amd64\artifact\M2.efi --architecture amd64 -f M2libc/sys/types.h -f M2libc/stddef.h -f M2libc/uefi/uefi.c -f M2libc/string.c -f M2libc/uefi/fcntl.c -f M2libc/fcntl.c -f M2libc/stdio.h -f M2libc/stdio.c -f M2libc/sys/utsname.h -f M2libc/uefi/unistd.c -f M2libc/uefi/sys/stat.c -f M2libc/stdlib.c -f M2libc/ctype.c -f M2libc/bootstrappable.c -f mescc-tools/stringify.c -f mescc-tools/M1-macro.c -o amd64/artifact/M1-macro-1.M1
+amd64\artifact\M2.efi --architecture amd64 -f M2libc\sys\types.h -f M2libc\stddef.h -f M2libc\uefi\uefi.c -f M2libc\string.c -f M2libc\uefi\fcntl.c -f M2libc\fcntl.c -f M2libc\sys\utsname.h -f M2libc\uefi\sys\stat.c -f M2libc\ctype.c -f M2libc\stdarg.h -f M2libc/stdio.h -f M2libc\stdio.c -f M2libc\uefi\unistd.c -f M2libc\stdlib.c -f M2libc\bootstrappable.c -f mescc-tools/stringify.c -f mescc-tools/M1-macro.c -o amd64/artifact/M1-macro-1.M1
 
 amd64\artifact\M1-0.efi --architecture amd64 --little-endian -f M2libc/amd64/amd64_defs.M1 -f M2libc/amd64/uefi/libc-full.M1 -f amd64/artifact/M1-macro-1.M1 -o amd64/artifact/M1-macro-1.hex2
 
@@ -94,7 +94,7 @@ amd64\artifact\hex2-1.efi --architecture amd64 --little-endian -f M2libc/amd64/u
 #####################################
 # Phase-9 Build hex2 from C sources #
 #####################################
-amd64\artifact\M2.efi --architecture amd64 -f M2libc/sys/types.h -f M2libc/stddef.h -f M2libc/uefi/uefi.c -f M2libc/string.c -f M2libc/uefi/fcntl.c -f M2libc/fcntl.c -f M2libc/stdio.h -f M2libc/stdio.c -f M2libc/sys/utsname.h -f M2libc/uefi/unistd.c -f M2libc/uefi/sys/stat.c -f M2libc/stdlib.c -f M2libc/ctype.c -f M2libc/bootstrappable.c -f mescc-tools/hex2.h -f mescc-tools/hex2_linker.c -f mescc-tools/hex2_word.c -f mescc-tools/hex2.c -o amd64/artifact/hex2_linker-2.M1
+amd64\artifact\M2.efi --architecture amd64 -f M2libc\sys\types.h -f M2libc\stddef.h -f M2libc\uefi\uefi.c -f M2libc\string.c -f M2libc\uefi\fcntl.c -f M2libc\fcntl.c -f M2libc\sys\utsname.h -f M2libc\uefi\sys\stat.c -f M2libc\ctype.c -f M2libc\stdarg.h -f M2libc/stdio.h -f M2libc\stdio.c -f M2libc\uefi\unistd.c -f M2libc\stdlib.c -f M2libc\bootstrappable.c -f mescc-tools/hex2.h -f mescc-tools/hex2_linker.c -f mescc-tools/hex2_word.c -f mescc-tools/hex2.c -o amd64/artifact/hex2_linker-2.M1
 
 amd64\bin\M1.efi --architecture amd64 --little-endian -f M2libc/amd64/amd64_defs.M1 -f M2libc/amd64/uefi/libc-full.M1 -f amd64/artifact/hex2_linker-2.M1 -o amd64/artifact/hex2_linker-2.hex2
 
@@ -103,7 +103,7 @@ amd64\artifact\hex2-1.efi --architecture amd64 --little-endian -f M2libc/amd64/u
 ######################################
 # Phase-10 Build kaem from C sources #
 ######################################
-amd64\artifact\M2.efi --architecture amd64 -f M2libc/sys/types.h -f M2libc/stddef.h -f M2libc/uefi/uefi.c -f M2libc/string.c -f M2libc/uefi/fcntl.c -f M2libc/fcntl.c -f M2libc/stdio.h -f M2libc/stdio.c -f M2libc/sys/utsname.h -f M2libc/uefi/unistd.c -f M2libc/uefi/sys/stat.c -f M2libc/stdlib.c -f M2libc/ctype.c -f M2libc/bootstrappable.c -f mescc-tools/Kaem/kaem.h -f mescc-tools/Kaem/variable.c -f mescc-tools/Kaem/kaem_globals.c -f mescc-tools/Kaem/kaem.c -o amd64/artifact/kaem.M1
+amd64\artifact\M2.efi --architecture amd64 -f M2libc\sys\types.h -f M2libc\stddef.h -f M2libc\uefi\uefi.c -f M2libc\string.c -f M2libc\uefi\fcntl.c -f M2libc\fcntl.c -f M2libc\sys\utsname.h -f M2libc\uefi\sys\stat.c -f M2libc\ctype.c -f M2libc\stdarg.h -f M2libc/stdio.h -f M2libc\stdio.c -f M2libc\uefi\unistd.c -f M2libc\stdlib.c -f M2libc\bootstrappable.c -f mescc-tools/Kaem/kaem.h -f mescc-tools/Kaem/variable.c -f mescc-tools/Kaem/kaem_globals.c -f mescc-tools/Kaem/kaem.c -o amd64/artifact/kaem.M1
 
 amd64\bin\M1.efi --architecture amd64 --little-endian -f M2libc/amd64/amd64_defs.M1 -f M2libc/amd64/uefi/libc-full.M1 -f amd64/artifact/kaem.M1 -o amd64/artifact/kaem.hex2
 
