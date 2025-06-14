@@ -2751,7 +2751,7 @@ primary_expr_not:
     lea rax, [rip+postfix_expr] # Passing postfix_expr
     call common_recursion       # Get what it is notting
 
-    lea rax, [rip+primary_expr_string_3] # Using "XOR_rbx_rax_into_rax\n"
+    lea rax, [rip+primary_expr_string_3] # Using "cmp_rbx,rax\nseta_al\nmovzx_rax,al\n"
     call emit_out               # Emit it
     jmp primary_expr_done       # Be done
 
@@ -2851,7 +2851,7 @@ primary_expr_done:
 primary_expr_string_0: .asciz "LOAD_IMMEDIATE_rax %0\n"
 primary_expr_string_1: .asciz "SUBTRACT_rax_from_rbx_into_rbx\nMOVE_rbx_to_rax\n"
 primary_expr_string_2: .asciz "LOAD_IMMEDIATE_rax %1\n"
-primary_expr_string_3: .asciz "XOR_rbx_rax_into_rax\n"
+primary_expr_string_3: .asciz "cmp_rbx,rax\nseta_al\nmovzx_rax,al\n"
 primary_expr_string_4: .asciz "NOT_rax\n"
 primary_expr_string_5: .asciz "Error in Primary expression\nDidn't get )\n"
 primary_expr_string_6: .asciz "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"
