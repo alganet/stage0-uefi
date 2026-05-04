@@ -1,7 +1,33 @@
 /*
  * SPDX-FileCopyrightText: 2023 Andrius Štikonas <andrius@stikonas.eu>
+ * SPDX-FileCopyrightText: 2026 Alexandre Gomes Gaigalas (riscv64 port)
  *
  * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * ====================================================================
+ * posix-runner -- POSIX syscall shim for ELF binaries under UEFI
+ * ====================================================================
+ *
+ * Loads a Linux/POSIX ELF executable, jumps to its entry point with
+ * a properly built argc/argv/envp/auxv stack, and intercepts its
+ * syscalls -- routing each one to a sys_<name> handler that calls
+ * the matching M2libc UEFI helper. The result is that mes (and any
+ * other simple POSIX program) runs unmodified inside UEFI.
+ *
+ * Architecture split:
+ *   - __x86_64__ : syscalls land via SYSCALL+LSTAR. Uses MSR setup
+ *                  (wrmsr/rdmsr) and a 4-level page-table identity
+ *                  map for U-mode execution.
+ *   - __riscv    : syscalls land via ECALL-from-U trap. Uses a
+ *                  hand-written trap entry (trap-entry-riscv64.M1)
+ *                  and runs in bare mode (satp=0) -- see the long
+ *                  comment near pt_enable_user_access for the
+ *                  rationale.
+ *
+ * Each #ifdef __x86_64__ / #elif defined(__riscv) split is structural
+ * (one branch per arch); the M2-Planet C subset doesn't support
+ * function-pointer abstractions over inline asm, so we paste the
+ * arch-specific code in the matching branch.
  */
 
 #include <stdio.h>
@@ -21,6 +47,81 @@ void* page_table;
 #define MSR_EFER (0x60000080 + 0x60000000)
 #define MSR_STAR (0x60000081 + 0x60000000)
 #define MSR_LSTAR (0x60000082 + 0x60000000)
+
+#ifdef __riscv
+/* On riscv64 UEFI we run user code in U-mode with paging disabled (satp=0).
+ * UEFI's identity mapping is saved in uefi_satp_saved and restored when the
+ * runner exits. Syscalls reach us via ECALL-from-U (scause=8). */
+
+#define SCAUSE_ECALL_FROM_U 8
+
+/* riscv64 Linux syscall numbers (generic ABI) */
+#define RV_SYS_getcwd 17
+#define RV_SYS_unlinkat 35
+#define RV_SYS_mkdirat 34
+#define RV_SYS_faccessat 48
+#define RV_SYS_chdir 49
+#define RV_SYS_fchdir 50
+#define RV_SYS_chroot 51
+#define RV_SYS_openat 56
+#define RV_SYS_close 57
+#define RV_SYS_lseek 62
+#define RV_SYS_read 63
+#define RV_SYS_write 64
+#define RV_SYS_uname 160
+#define RV_SYS_brk 214
+#define RV_SYS_clone 220
+#define RV_SYS_execve 221
+#define RV_SYS_exit 93
+#define RV_SYS_wait4 260
+
+/* Saved trap context (on the handler stack). User regs except x0 + scratch
+ * for the trap entry's atomic sscratch swap. */
+struct trap_frame {
+    long ra;     /* x1  */
+    long sp;     /* x2  (user sp swapped via sscratch) */
+    long gp;     /* x3  */
+    long tp;     /* x4  */
+    long t0;     /* x5  */
+    long t1;     /* x6  */
+    long t2;     /* x7  */
+    long s0;     /* x8  */
+    long s1;     /* x9  */
+    long a0;     /* x10 */
+    long a1;     /* x11 */
+    long a2;     /* x12 */
+    long a3;     /* x13 */
+    long a4;     /* x14 */
+    long a5;     /* x15 */
+    long a6;     /* x16 */
+    long a7;     /* x17 - syscall number */
+    long s2;     /* x18 */
+    long s3;     /* x19 */
+    long s4;     /* x20 */
+    long s5;     /* x21 */
+    long s6;     /* x22 */
+    long s7;     /* x23 */
+    long s8;     /* x24 */
+    long s9;     /* x25 */
+    long s10;    /* x26 */
+    long s11;    /* x27 */
+    long t3;     /* x28 */
+    long t4;     /* x29 */
+    long t5;     /* x30 */
+    long t6;     /* x31 */
+    long sepc;
+    long scause;
+    long stval;
+    long pad;    /* keep 16-byte aligned (35 longs * 8 = 280, 280%16=8; pad to 288) */
+};
+
+/* Saved UEFI satp/stvec/sie so we can put the firmware's state back when
+ * the runner returns control. We disable paging via satp=0 for the runner
+ * itself; UEFI's identity-mapped Sv39 setup is restored on sys_exit. */
+long uefi_satp_saved;
+long uefi_stvec_saved;
+long handler_stack_top;
+#endif
 
 void* syscall_table;
 int prev_tpl;
@@ -58,21 +159,60 @@ struct process* current_process;
 void* _brk;
 void* _saved_memory;
 
+#ifdef __riscv
+/* Forward declarations for the hand-written .M1 bridges (defined in
+ * trap-entry-riscv64.M1) and the page-table helpers (defined further down
+ * in this file). Declared up-front so callers higher in the file can reach
+ * them — M2-Planet doesn't accept references to undefined symbols. */
+void _riscv_install_trap_entry(long handler_stack_top);
+long _riscv_get_stvec();
+void _riscv_set_stvec(long val);
+void _riscv_enter_u_mode(void* entry_pc, long* user_sp);
+long _riscv_sie_save_and_clear();
+void _riscv_sie_restore(long val);
+void _riscv_disable_paging();
+/* Direct write to QEMU virt's 16550A UART at 0x10000000 — keep as a
+ * debug escape if ConOut breaks (e.g. after a future paging change). */
+void _riscv_uart_putc(int c);
+void pt_enable_user_access();
+void pt_restore_user_access();
+
+/* Saved sie so we can restore on exit (UEFI's timer was running in it). */
+long uefi_sie_saved;
+#endif
+
 void* get_cr3()
 {
+#ifdef __x86_64__
     asm("mov_rax,cr3");
+#elif defined(__riscv)
+    /* On riscv64 the equivalent is satp. We return its raw value as an
+     * opaque "page table identifier". Caller treats it as void*. */
+    asm("rd_a0 csr_satp rs1_zero csrrs");
+#endif
 }
 
 void set_cr3(long address)
 {
+#ifdef __x86_64__
     asm("lea_rax,[rbp+DWORD] %-8"
     "mov_rax,[rax]"
     "mov_cr3,rax");
+#elif defined(__riscv)
+    /* csrrw zero, satp, a0 (write satp without reading); flush TLB. */
+    asm("rd_a0 rs1_fp !-8 ld"
+        "rd_zero csr_satp rs1_a0 csrrw"
+        "rd_zero rs1_zero rs2_zero sfence_vma");
+#endif
 }
 
 void* _get_stack()
 {
+#ifdef __x86_64__
     asm("mov_rax,rsp");
+#elif defined(__riscv)
+    asm("rd_a0 rs1_sp mv");
+#endif
 }
 
 void* get_stack()
@@ -147,6 +287,7 @@ void jump(void* start_address, int argc, char** argv, char** envp)
 
     /* Prepare stack of the new executable */
     current_process->stack = get_stack();
+#ifdef __x86_64__
     for (i = current_process->envc; i >= 0; i -= 1) {
         current_process->envp[i];
         asm("push_rax");
@@ -162,6 +303,55 @@ void jump(void* start_address, int argc, char** argv, char** envp)
         "mov_rcx,[rcx]"
         "jmp_rcx"
     );
+#elif defined(__riscv)
+    /* Build the Linux riscv64 user-mode startup stack in a malloc'd region.
+     * Layout (low to high):
+     *   sp ->  argc
+     *          argv[0] ... argv[argc-1]
+     *          NULL
+     *          envp[0] ... envp[envc-1]
+     *          NULL
+     *          AT_NULL (auxv terminator: 2 longs of zero)
+     * Below sp is the user runtime stack.
+     */
+    /* M2-Planet's calling convention pushes 4 saved registers per call AND
+     * each arg as a separate stack push. mes recursion through eval/apply
+     * blows past 1 MiB easily — 8 MiB gives plenty of headroom. */
+    long stack_size = 8 * 1024 * 1024;
+    long argv_envp_count = 1 + argc + 1 + current_process->envc + 1 + 2;
+    long argv_envp_bytes = argv_envp_count * 8;
+    char* user_stack_base = malloc(stack_size + argv_envp_bytes);
+    if (user_stack_base == NULL) {
+        fputs("Could not allocate user stack.\n", stderr);
+        exit(1);
+    }
+    long* sp = (long*)(user_stack_base + stack_size);
+
+    long off = 0;
+    sp[off] = argc;
+    off = off + 1;
+    for (i = 0; i < argc; i = i + 1) {
+        /* Parenthesised: M2-Planet otherwise parses (long)current_process->argv
+         * as ((long)current_process)->argv and chokes on long->member. */
+        sp[off] = (long)(current_process->argv[i]);
+        off = off + 1;
+    }
+    sp[off] = 0;
+    off = off + 1;
+    for (i = 0; i < current_process->envc; i = i + 1) {
+        sp[off] = (long)(current_process->envp[i]);
+        off = off + 1;
+    }
+    sp[off] = 0;
+    off = off + 1;
+    sp[off] = 0;            /* AT_NULL.a_type */
+    off = off + 1;
+    sp[off] = 0;            /* AT_NULL.a_val  */
+
+    /* Defined in trap-entry-riscv64.M1: enters U-mode at start_address with
+     * sp pointing at the constructed argc/argv/envp/auxv block. Never returns. */
+    _riscv_enter_u_mode(start_address, sp);
+#endif
 }
 
 void init_io()
@@ -324,8 +514,16 @@ void sys_exit(unsigned value, void, void, void, void, void)
     }
 
     if (current_process->parent == NULL) {
+#ifdef __riscv
+        /* Restore the page-table U bits we flipped before exit() so UEFI's
+         * tables look the way the firmware left them. */
+        pt_restore_user_access();
+        _riscv_set_stvec(uefi_stvec_saved);
+        _riscv_sie_restore(uefi_sie_saved);
+#endif
         exit(value);
     }
+#ifdef __x86_64__
     current_process->parent->child_exit_code = value;
     struct process* child;
     child = current_process;
@@ -344,6 +542,13 @@ void sys_exit(unsigned value, void, void, void, void, void)
         "mov_rax, %1"
         "ret"
     );
+#elif defined(__riscv)
+    /* fork/execve isn't supported on riscv64 yet (mes --version doesn't need
+     * it). Fall back to plain exit. */
+    pt_restore_user_access();
+    _riscv_set_stvec(uefi_stvec_saved);
+    exit(value);
+#endif
 }
 
 int sys_wait4(int pid, int* status_ptr, int options)
@@ -387,13 +592,85 @@ int sys_chroot(char const *path)
     return chroot(path);
 }
 
+#ifdef __riscv
+/* riscv64 generic Linux ABI uses *at variants instead of the basename forms.
+ * Each takes a leading dirfd argument followed by the basename arguments.
+ * AT_FDCWD = -100 (a small negative int) means "interpret relative to the
+ * current working directory" — which is what plain open/access/etc. do.
+ *
+ * posix-runner has no notion of arbitrary dirfds (we don't dup or hold open
+ * directory handles), and mes/glibc-style libcs use AT_FDCWD exclusively, so
+ * we just drop the dirfd and dispatch to the basename helper. The previous
+ * mapping (`syscall_table[openat] = sys_open`) shifted args by one slot and
+ * caused mes to deref AT_FDCWD as a path — surfacing as a load fault on
+ * stval=0xff..ff9c (the sign-extended -100). */
+int sys_openat(int dirfd, char* name, int flag, int mode, void, void)
+{
+    return sys_open(name, flag, mode, NULL, NULL, NULL);
+}
+
+int sys_mkdirat(int dirfd, char const* path, int mode, void, void, void)
+{
+    return sys_mkdir(path, mode, NULL, NULL, NULL, NULL);
+}
+
+int sys_unlinkat(int dirfd, char* path, int flags, void, void, void)
+{
+    return sys_unlink(path, NULL, NULL, NULL, NULL, NULL);
+}
+
+int sys_faccessat(int dirfd, char* path, int mode, int flags, void, void)
+{
+    return sys_access(path, mode, NULL, NULL, NULL, NULL);
+}
+
+/* Stubs for time / id syscalls mes calls during startup. We don't have
+ * a real clock under UEFI; returning zero-filled timespec/timeval and
+ * uid 0 keeps mes happy without forcing it down error paths. */
+int sys_clock_gettime(int clk_id, char* ts, void, void, void, void)
+{
+    if (ts != NULL) {
+        memset(ts, 0, 16);   /* struct timespec on rv64: 2 x long = 16 B */
+    }
+    return 0;
+}
+
+int sys_gettimeofday(char* tv, char* tz, void, void, void, void)
+{
+    if (tv != NULL) {
+        memset(tv, 0, 16);   /* struct timeval: 2 x long = 16 B */
+    }
+    if (tz != NULL) {
+        memset(tz, 0, 8);    /* struct timezone: 2 x int = 8 B */
+    }
+    return 0;
+}
+
+int sys_getuid(void, void, void, void, void, void)
+{
+    return 0;
+}
+
+int sys_times(char* buf, void, void, void, void, void)
+{
+    /* struct tms: 4 x clock_t = 32 B; zero them and return success. */
+    if (buf != NULL) {
+        memset(buf, 0, 32);
+    }
+    return 0;
+}
+#endif
+
 void init_syscalls()
 {
+    /* Table sized for the largest syscall number we register on either arch.
+     * riscv64 generic ABI uses up to ~290 (wait4), amd64 up to 161. 300 is fine. */
     syscall_table = calloc(300, sizeof(void *));
     if (syscall_table == NULL) {
         fputs("Could not allocate memory for syscall table.\n", stderr);
         exit(1);
     }
+#ifdef __x86_64__
     syscall_table[0] = sys_read;
     syscall_table[1] = sys_write;
     syscall_table[2] = sys_open;
@@ -412,8 +689,45 @@ void init_syscalls()
     syscall_table[83] = sys_mkdir;
     syscall_table[87] = sys_unlink;
     syscall_table[161] = sys_chroot;
+#elif defined(__riscv)
+    /* riscv64 generic Linux ABI numbers (asm-generic/unistd.h). The mes-on-mes
+     * builds we run via posix-runner emit this set. *at variants exist for
+     * many that amd64 has as basename forms; we map the basename sys_* helpers
+     * (which call the M2libc thin wrappers) to the *at numbers and let the
+     * libc helpers handle the dirfd=AT_FDCWD case. */
+    syscall_table[RV_SYS_read]      = sys_read;
+    syscall_table[RV_SYS_write]     = sys_write;
+    syscall_table[RV_SYS_openat]    = sys_openat;
+    syscall_table[RV_SYS_close]     = sys_close;
+    syscall_table[RV_SYS_lseek]     = sys_lseek;
+    syscall_table[RV_SYS_brk]       = sys_brk;
+    syscall_table[RV_SYS_faccessat] = sys_faccessat;
+    syscall_table[RV_SYS_clone]     = sys_fork;
+    syscall_table[RV_SYS_execve]    = sys_execve;
+    syscall_table[RV_SYS_exit]      = sys_exit;
+    syscall_table[RV_SYS_wait4]     = sys_wait4;
+    syscall_table[RV_SYS_uname]     = sys_uname;
+    syscall_table[RV_SYS_getcwd]    = sys_getcwd;
+    syscall_table[RV_SYS_chdir]     = sys_chdir;
+    syscall_table[RV_SYS_fchdir]    = sys_fchdir;
+    syscall_table[RV_SYS_mkdirat]   = sys_mkdirat;
+    syscall_table[RV_SYS_unlinkat]  = sys_unlinkat;
+    syscall_table[RV_SYS_chroot]    = sys_chroot;
+    /* Time / id stubs that mes calls during startup. Real values aren't
+     * available under UEFI; zero-filled outputs are accepted by mes. */
+    syscall_table[113] = sys_clock_gettime;
+    syscall_table[153] = sys_times;
+    syscall_table[169] = sys_gettimeofday;
+    syscall_table[174] = sys_getuid;     /* getuid */
+    syscall_table[175] = sys_getuid;     /* geteuid */
+    syscall_table[176] = sys_getuid;     /* getgid */
+    syscall_table[177] = sys_getuid;     /* getegid */
+    syscall_table[172] = sys_getuid;     /* getpid -> 0 */
+    syscall_table[173] = sys_getuid;     /* getppid -> 0 */
+#endif
 }
 
+#ifdef __x86_64__
 void wrmsr(unsigned msr, int low, int high)
 {
     asm("lea_rcx,[rbp+DWORD] %-8"
@@ -440,7 +754,147 @@ ulong rdmsrl(unsigned msr)
         "add_rax,rdx"
     );
 }
+#endif
 
+#ifdef __riscv
+/* (Forward decls for the hand-written .M1 bridges live near the top of
+ * this file so jump() can reach them.) */
+
+/* Disable paging for the duration of the user program. UEFI runs with
+ * Sv39 identity-mapped; we save its satp and switch to bare mode (MODE=0)
+ * so U-mode runs against physical memory directly. RISC-V does not require
+ * PTE.U checks when paging is off, so U-mode load/store/fetch all work
+ * without us building our own page table. ECALL-from-U still traps to
+ * S-mode, which is what we need for syscall dispatch.
+ *
+ * Earlier attempts to swap satp to a self-built Sv39 identity table hung
+ * inside csrrw under QEMU TCG even though the encoding was correct and a
+ * MODE=0 csrrw worked from the same code path. Since UEFI is already
+ * identity-mapped and we don't need address-space isolation here, dropping
+ * paging entirely is simpler and reliable. */
+void pt_enable_user_access()
+{
+    uefi_satp_saved = (long)get_cr3();
+    _riscv_disable_paging();
+}
+
+void pt_restore_user_access()
+{
+    set_cr3(uefi_satp_saved);
+}
+
+/* Single-arg dispatcher called from trap-entry-riscv64.M1. The trap stub
+ * passes a pointer to the saved user state; we read the syscall number from
+ * a7 and the args from a0..a5, look up the handler, and return its result.
+ * The trap stub stashes the return value back into the saved a0 slot. */
+long _riscv_entry_syscall(struct trap_frame* tf)
+{
+    long syscall_num = tf->a7;
+    long cause = tf->scause;
+
+    /* If this isn't ECALL-from-U-mode (cause=8) we have a real fault. Dump
+     * the saved frame inline using fputc-per-hex-digit — stack arrays in
+     * this trap-dispatcher frame fault under M2-Planet's local-variable
+     * layout, so we can't use a printf-style buffer here. Then halt with
+     * spin-wfi: do NOT call exit() from inside the dispatcher, because
+     * that re-enters UEFI/SBI services with our modified stvec/sscratch
+     * and tends to either hang or re-trap. */
+    if (cause != SCAUSE_ECALL_FROM_U) {
+        long v;
+        char nib;
+        int sh;
+        int d;
+        long* user_sp_p;
+        int si;
+        long ov;
+        fputs("posix-runner: unexpected trap\n  scause=0x", stderr);
+        v = cause;
+        sh = 60; while (sh >= 0) { d = (v >> sh) & 0xF; if (d < 10) nib = '0' + d; else nib = 'a' + (d - 10); fputc(nib, stderr); sh = sh - 4; }
+        fputs("\n  sepc  =0x", stderr);
+        v = tf->sepc;
+        sh = 60; while (sh >= 0) { d = (v >> sh) & 0xF; if (d < 10) nib = '0' + d; else nib = 'a' + (d - 10); fputc(nib, stderr); sh = sh - 4; }
+        fputs("\n  stval =0x", stderr);
+        v = tf->stval;
+        sh = 60; while (sh >= 0) { d = (v >> sh) & 0xF; if (d < 10) nib = '0' + d; else nib = 'a' + (d - 10); fputc(nib, stderr); sh = sh - 4; }
+        fputs("\n  ra    =0x", stderr);
+        v = tf->ra;
+        sh = 60; while (sh >= 0) { d = (v >> sh) & 0xF; if (d < 10) nib = '0' + d; else nib = 'a' + (d - 10); fputc(nib, stderr); sh = sh - 4; }
+        fputs("\n  sp    =0x", stderr);
+        v = tf->sp;
+        sh = 60; while (sh >= 0) { d = (v >> sh) & 0xF; if (d < 10) nib = '0' + d; else nib = 'a' + (d - 10); fputc(nib, stderr); sh = sh - 4; }
+        fputs("\n  tp    =0x", stderr);
+        v = tf->tp;
+        sh = 60; while (sh >= 0) { d = (v >> sh) & 0xF; if (d < 10) nib = '0' + d; else nib = 'a' + (d - 10); fputc(nib, stderr); sh = sh - 4; }
+        fputs("\n  s0/fp =0x", stderr);
+        v = tf->s0;
+        sh = 60; while (sh >= 0) { d = (v >> sh) & 0xF; if (d < 10) nib = '0' + d; else nib = 'a' + (d - 10); fputc(nib, stderr); sh = sh - 4; }
+        fputs("\n  t3    =0x", stderr);
+        v = tf->t3;
+        sh = 60; while (sh >= 0) { d = (v >> sh) & 0xF; if (d < 10) nib = '0' + d; else nib = 'a' + (d - 10); fputc(nib, stderr); sh = sh - 4; }
+        /* Dump 32 longs starting at user sp. In bare mode VA == PA so
+         * we can read the user's stack directly. Used to find saved ra
+         * values up the call chain. */
+        user_sp_p = (long*)(tf->sp);
+        for (si = 0; si < 32; si = si + 1) {
+            fputs("\n  *sp+0x", stderr);
+            ov = si * 8;
+            sh = 8; while (sh >= 0) { d = (ov >> sh) & 0xF; if (d < 10) nib = '0' + d; else nib = 'a' + (d - 10); fputc(nib, stderr); sh = sh - 4; }
+            fputs(" =0x", stderr);
+            v = user_sp_p[si];
+            sh = 60; while (sh >= 0) { d = (v >> sh) & 0xF; if (d < 10) nib = '0' + d; else nib = 'a' + (d - 10); fputc(nib, stderr); sh = sh - 4; }
+        }
+        fputs("\n  a0    =0x", stderr);
+        v = tf->a0;
+        sh = 60; while (sh >= 0) { d = (v >> sh) & 0xF; if (d < 10) nib = '0' + d; else nib = 'a' + (d - 10); fputc(nib, stderr); sh = sh - 4; }
+        fputs("\n  a1    =0x", stderr);
+        v = tf->a1;
+        sh = 60; while (sh >= 0) { d = (v >> sh) & 0xF; if (d < 10) nib = '0' + d; else nib = 'a' + (d - 10); fputc(nib, stderr); sh = sh - 4; }
+        fputs("\n  a2    =0x", stderr);
+        v = tf->a2;
+        sh = 60; while (sh >= 0) { d = (v >> sh) & 0xF; if (d < 10) nib = '0' + d; else nib = 'a' + (d - 10); fputc(nib, stderr); sh = sh - 4; }
+        fputs("\n  a3    =0x", stderr);
+        v = tf->a3;
+        sh = 60; while (sh >= 0) { d = (v >> sh) & 0xF; if (d < 10) nib = '0' + d; else nib = 'a' + (d - 10); fputc(nib, stderr); sh = sh - 4; }
+        fputs("\n  a7    =0x", stderr);
+        v = tf->a7;
+        sh = 60; while (sh >= 0) { d = (v >> sh) & 0xF; if (d < 10) nib = '0' + d; else nib = 'a' + (d - 10); fputc(nib, stderr); sh = sh - 4; }
+        fputs("\nposix-runner: halting (wfi loop).\n", stderr);
+        while (1) {
+            asm("wfi");
+        }
+    }
+
+    if (syscall_num >= 300) {
+        return -1;
+    }
+    FUNCTION process_syscall = syscall_table[syscall_num];
+    if (process_syscall != NULL) {
+        return process_syscall(tf->a0, tf->a1, tf->a2, tf->a3, tf->a4, tf->a5);
+    }
+    /* Unsupported syscall: log the number and return -1. Same inlined
+     * fputc-per-digit pattern as the fault path — see the trap-fault
+     * comment above for why we can't use a stack buffer here. */
+    {
+        long sv = syscall_num;
+        int ssh;
+        int sd_;
+        char snib;
+        fputs("posix-runner: unsupported riscv64 syscall 0x", stderr);
+        ssh = 28;
+        while (ssh >= 0) {
+            sd_ = (sv >> ssh) & 0xF;
+            if (sd_ < 10) snib = '0' + sd_;
+            else snib = 'a' + (sd_ - 10);
+            fputc(snib, stderr);
+            ssh = ssh - 4;
+        }
+        fputs("\n", stderr);
+    }
+    return -1;
+}
+#endif
+
+#ifdef __x86_64__
 void _entry_syscall(long syscall, long arg1, long arg2, long arg3, long arg4, long arg5, long arg6)
 {
     FUNCTION process_syscall = syscall_table[syscall];
@@ -503,6 +957,7 @@ void entry_syscall()
     /* Jump back to POSIX program */
     asm("jmp_rcx");
 }
+#endif
 
 int main(int argc, char** argv, char** envp)
 {
@@ -547,6 +1002,7 @@ int main(int argc, char** argv, char** envp)
     prev_tpl = __uefi_1(TPL_HIGH_LEVEL, _system->boot_services->raise_tpl);
     current_process->entry_point = entry_point(current_process->program.address);
 
+#ifdef __x86_64__
     ulong msr_efer = rdmsrl(MSR_EFER);
     msr_efer |= 1; /* Enable syscalls */
 
@@ -555,6 +1011,37 @@ int main(int argc, char** argv, char** envp)
     wrmsrl(MSR_STAR, msr_star);
     wrmsrl(MSR_EFER, msr_efer);
     wrmsrl(MSR_LSTAR, entry_syscall);
+#elif defined(__riscv)
+    /* Save UEFI's stvec so we can restore it on (post-mortem) exit. */
+    uefi_stvec_saved = _riscv_get_stvec();
+
+    /* Carve out a dedicated handler stack so trap entries don't disturb the
+     * runner's normal call stack. 64 KiB is comfortable for the dispatcher
+     * plus any UEFI calls the syscall handlers make. */
+    long handler_stack_size = 64 * 1024;
+    char* handler_stack = malloc(handler_stack_size);
+    if (handler_stack == NULL) {
+        fputs("Could not allocate handler stack.\n", stderr);
+        exit(6);
+    }
+    handler_stack_top = (long)(handler_stack + handler_stack_size);
+
+    /* Disable supervisor interrupts before installing our trap handler.
+     * UEFI leaves the supervisor timer armed; if it fires between our
+     * trap-handler install and this call, our dispatcher receives an
+     * unexpected scause=0x8000...0005 and halts. Disabling sources here
+     * leaves only fault-class traps reaching us during setup — exactly
+     * the ones we want diagnostics for. */
+    uefi_sie_saved = _riscv_sie_save_and_clear();
+
+    /* Wire our trap handler before disabling paging so any fault during
+     * the satp swap surfaces with scause/sepc/stval rather than handing
+     * control back to UEFI's stvec (which silently hangs the firmware). */
+    _riscv_install_trap_entry(handler_stack_top);
+
+    /* Switch from UEFI's Sv39 identity mapping to bare mode. */
+    pt_enable_user_access();
+#endif
 
     init_syscalls();
     int argc0 = 1; /* skip argv[0] since it contains the name of efi binary */

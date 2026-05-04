@@ -1,0 +1,259 @@
+## SPDX-FileCopyrightText: 2026 Alexandre Gomes Gaigalas
+## SPDX-License-Identifier: GPL-3.0-or-later
+##
+## riscv64 posix-runner trap handler entry stub.
+##
+## Lives at the address stored in stvec. On a trap from U-mode (e.g. ECALL),
+## the CPU jumps here in S-mode with the user's GPRs intact and sepc set to
+## the faulting PC. We:
+##   1. csrrw sp, sscratch, sp  -- atomic stack swap, sp=handler stack,
+##                                  sscratch=user sp
+##   2. allocate a 256-byte trap_frame on the handler stack
+##   3. save x1, x3-x31 plus the user's sp (read back from sscratch) and sepc
+##   4. call _entry_syscall(struct trap_frame*); the C dispatcher reads
+##      tf->a7 for the syscall number, dispatches via syscall_table, and
+##      stores the return value back to tf->a0
+##   5. advance sepc by 4 (past the ECALL)
+##   6. restore user GPRs
+##   7. csrrw sp, sscratch, sp  -- swap back
+##   8. sret
+##
+## trap_frame layout (matches struct in posix-runner.c):
+##   ra=0  sp=8  gp=16  tp=24  t0=32 t1=40 t2=48 s0=56 s1=64
+##   a0=72 a1=80 a2=88  a3=96  a4=104 a5=112 a6=120 a7=128
+##   s2=136 s3=144 s4=152 s5=160 s6=168 s7=176 s8=184 s9=192 s10=200 s11=208
+##   t3=216 t4=224 t5=232 t6=240
+##   sepc=248
+
+:_riscv_trap_entry
+	## Atomic swap: sp <-> sscratch (handler stack now in sp, user sp in sscratch)
+	rd_sp csr_sscratch rs1_sp csrrw
+
+	## Allocate trap_frame (288 bytes; 32 GPRs + sepc + scause + stval + pad)
+	rd_sp rs1_sp !-288 addi
+
+	## Save GPRs except x0 and sp (sp is in sscratch, saved separately below)
+	rs1_sp rs2_ra sd
+	rs1_sp rs2_gp @16 sd
+	rs1_sp rs2_tp @24 sd
+	rs1_sp rs2_t0 @32 sd
+	rs1_sp rs2_t1 @40 sd
+	rs1_sp rs2_t2 @48 sd
+	rs1_sp rs2_s0 @56 sd
+	rs1_sp rs2_s1 @64 sd
+	rs1_sp rs2_a0 @72 sd
+	rs1_sp rs2_a1 @80 sd
+	rs1_sp rs2_a2 @88 sd
+	rs1_sp rs2_a3 @96 sd
+	rs1_sp rs2_a4 @104 sd
+	rs1_sp rs2_a5 @112 sd
+	rs1_sp rs2_a6 @120 sd
+	rs1_sp rs2_a7 @128 sd
+	rs1_sp rs2_s2 @136 sd
+	rs1_sp rs2_s3 @144 sd
+	rs1_sp rs2_s4 @152 sd
+	rs1_sp rs2_s5 @160 sd
+	rs1_sp rs2_s6 @168 sd
+	rs1_sp rs2_s7 @176 sd
+	rs1_sp rs2_s8 @184 sd
+	rs1_sp rs2_s9 @192 sd
+	rs1_sp rs2_s10 @200 sd
+	rs1_sp rs2_s11 @208 sd
+	rs1_sp rs2_t3 @216 sd
+	rs1_sp rs2_t4 @224 sd
+	rs1_sp rs2_t5 @232 sd
+	rs1_sp rs2_t6 @240 sd
+
+	## Read user's sp out of sscratch (csrrs t0, sscratch, x0) and stash
+	rd_t0 csr_sscratch rs1_zero csrrs
+	rs1_sp rs2_t0 @8 sd
+
+	## Capture sepc, scause, stval
+	rd_t0 csr_sepc rs1_zero csrrs
+	rs1_sp rs2_t0 @248 sd
+	rd_t0 csr_scause rs1_zero csrrs
+	rs1_sp rs2_t0 @256 sd
+	rd_t0 csr_stval rs1_zero csrrs
+	rs1_sp rs2_t0 @264 sd
+
+	## Call _riscv_entry_syscall(tf). Per M2-Planet's RISC-V caller convention
+	## we save tp/ra/fp/t3 first, then set tp=sp (the future fp), then push the
+	## arg, then fp=tp, then jal. After return we restore in reverse order.
+	##
+	## At this point sp points at the trap_frame (TF_BASE).
+	rd_sp rs1_sp !-32 addi       ## sp = TF_BASE - 32
+	rs1_sp rs2_tp sd             ## save tp
+	rs1_sp rs2_ra @8 sd          ## save ra
+	rs1_sp rs2_fp @16 sd         ## save fp
+	rs1_sp rs2_t3 @24 sd         ## save t3 (REGISTER_LOCALS)
+
+	rd_tp rs1_sp mv              ## tp = current sp (becomes fp)
+
+	## Push arg: tf = TF_BASE = sp + 32
+	rd_a0 rs1_sp !32 addi
+	rd_sp rs1_sp !-8 addi
+	rs1_sp rs2_a0 sd
+
+	rd_fp rs1_tp mv              ## fp = tp
+
+	rd_ra $FUNCTION__riscv_entry_syscall jal
+
+	## Cleanup: sp = fp (discards arg slot), pop saved regs in reverse.
+	rd_sp rs1_fp mv
+	rd_t3 rs1_sp !24 ld
+	rd_fp rs1_sp !16 ld
+	rd_ra rs1_sp !8 ld
+	rd_tp rs1_sp ld
+	rd_sp rs1_sp !32 addi        ## sp = TF_BASE again
+
+	## Stash return value (a0) into the saved frame (overwrites saved user a0)
+	rs1_sp rs2_a0 @72 sd
+
+	## Advance sepc past the ECALL instruction (4 bytes)
+	rd_t0 rs1_sp !248 ld
+	rd_t0 rs1_t0 !4 addi
+	rd_zero csr_sepc rs1_t0 csrrw
+
+	## Stash user sp into sscratch BEFORE restoring user GPRs (we use t0 as
+	## scratch; user's t0 is restored from frame just below, overwriting our
+	## temporary use). After the final csrrw swap below, sscratch will hold
+	## the handler_stack_top again, ready for the next trap.
+	rd_t0 rs1_sp !8 ld
+	rd_zero csr_sscratch rs1_t0 csrrw
+
+	## Restore user GPRs (x1, x3-x31; sp via sscratch+csrrw swap below)
+	rd_ra rs1_sp ld
+	rd_gp rs1_sp !16 ld
+	rd_tp rs1_sp !24 ld
+	rd_t0 rs1_sp !32 ld
+	rd_t1 rs1_sp !40 ld
+	rd_t2 rs1_sp !48 ld
+	rd_s0 rs1_sp !56 ld
+	rd_s1 rs1_sp !64 ld
+	rd_a0 rs1_sp !72 ld
+	rd_a1 rs1_sp !80 ld
+	rd_a2 rs1_sp !88 ld
+	rd_a3 rs1_sp !96 ld
+	rd_a4 rs1_sp !104 ld
+	rd_a5 rs1_sp !112 ld
+	rd_a6 rs1_sp !120 ld
+	rd_a7 rs1_sp !128 ld
+	rd_s2 rs1_sp !136 ld
+	rd_s3 rs1_sp !144 ld
+	rd_s4 rs1_sp !152 ld
+	rd_s5 rs1_sp !160 ld
+	rd_s6 rs1_sp !168 ld
+	rd_s7 rs1_sp !176 ld
+	rd_s8 rs1_sp !184 ld
+	rd_s9 rs1_sp !192 ld
+	rd_s10 rs1_sp !200 ld
+	rd_s11 rs1_sp !208 ld
+	rd_t3 rs1_sp !216 ld
+	rd_t4 rs1_sp !224 ld
+	rd_t5 rs1_sp !232 ld
+	rd_t6 rs1_sp !240 ld
+
+	## Free trap_frame: sp now points at handler_stack_top
+	rd_sp rs1_sp !288 addi
+
+	## Atomic swap: sp <-> sscratch. After this, sp = user sp (was in
+	## sscratch), sscratch = handler_stack_top (ready for the next trap).
+	rd_sp csr_sscratch rs1_sp csrrw
+
+	## Return to U-mode at sepc
+	sret
+
+## --- Bootstrap helpers --------------------------------------------------
+## C code calls _riscv_install_trap(handler_stack_top) once before going to
+## U-mode. We set sscratch to the handler stack top so the very first trap's
+## csrrw lands sp on a clean handler stack.
+
+:FUNCTION__riscv_install_trap_entry
+	## a0 (param 1) loaded from fp-8
+	rd_t0 rs1_fp !-8 ld
+	rd_zero csr_sscratch rs1_t0 csrrw
+
+	## Install our trap entry into stvec (mode 0 = direct)
+	rd_t0 ~_riscv_trap_entry auipc
+	rd_t0 rs1_t0 !_riscv_trap_entry addi
+	rd_zero csr_stvec rs1_t0 csrrw
+
+	ret
+
+## Reads stvec into a0 (return value).
+:FUNCTION__riscv_get_stvec
+	rd_a0 csr_stvec rs1_zero csrrs
+	ret
+
+## Writes a0 to stvec.
+:FUNCTION__riscv_set_stvec
+	rd_t0 rs1_fp !-8 ld
+	rd_zero csr_stvec rs1_t0 csrrw
+	ret
+
+## Enter U-mode: a0 = entry pc, a1 = user sp.
+## We set sepc=a0, clear SPP (so sret -> U-mode), set user sp via mv sp,a1, sret.
+## Note: this never returns; control transfers to U-mode entry.
+:FUNCTION__riscv_enter_u_mode
+	## load args
+	rd_t0 rs1_fp !-8 ld    ## t0 = entry pc
+	rd_t1 rs1_fp !-16 ld   ## t1 = user sp
+
+	## sepc = entry pc
+	rd_zero csr_sepc rs1_t0 csrrw
+
+	## sstatus.SPP = 0 (U-mode after sret); clear bit 8 (0x100)
+	rd_t2 rs1_zero !1 addi
+	rd_t2 rs1_t2 !8 slli            ## t2 = 0x100 (SPP mask)
+	rd_zero csr_sstatus rs1_t2 csrrc
+
+	## sstatus.SPIE = 0 (so sret sets SIE=0, interrupts disabled in U-mode);
+	## clear bit 5 (= 0x20)
+	rd_t2 rs1_zero !1 addi
+	rd_t2 rs1_t2 !5 slli             ## t2 = 1 << 5 = 0x20 (SPIE mask)
+	rd_zero csr_sstatus rs1_t2 csrrc
+
+	## Set sp to user sp; sret
+	rd_sp rs1_t1 mv
+	sret
+
+## Returns sie into a0 and clears all of sie. Interrupts in U-mode trap to
+## S-mode regardless of sstatus.SIE — sie is the only knob that lets us
+## prevent the supervisor timer interrupt from clobbering our trap handler.
+## Caller saves the returned value and restores it via _riscv_set_sie on
+## exit so UEFI gets its timer back.
+:FUNCTION__riscv_sie_save_and_clear
+	rd_a0 csr_sie rs1_zero csrrs       ## a0 = old sie
+	rd_zero csr_sie rs1_a0 csrrc       ## sie &= ~old_sie -> sie = 0
+	ret
+
+## Restore sie from a0.
+:FUNCTION__riscv_sie_restore
+	rd_t0 rs1_fp !-8 ld
+	rd_zero csr_sie rs1_t0 csrrw
+	ret
+
+## Disable paging (satp = 0, MODE=bare). U-mode programs run with PA==VA
+## directly; the U privilege level still enforces ECALL_FROM_U traps and
+## blocks privileged instructions, so this is a fully functional setup
+## for posix-runner — RISC-V does not require PTE.U checks when paging
+## is off. Earlier attempts to swap satp to a self-built Sv39 identity
+## table hung in QEMU (csrrw to satp with MODE=8|our_PPN never returned
+## even though MODE=0 csrrw worked); since UEFI is already identity-mapped
+## and we don't need address-space isolation for this runner, dropping
+## paging entirely is simpler and more reliable.
+:FUNCTION__riscv_disable_paging
+	rd_t0 rs1_zero addi          ## t0 = 0 (MODE=0, PPN=0)
+	rd_zero csr_satp rs1_t0 csrrw
+	rd_zero rs1_zero rs2_zero sfence_vma
+	ret
+
+## Direct write to the QEMU virt 16550A UART data register at 0x10000000.
+## Bypasses UEFI ConOut so we can produce output even after the page-table
+## swap if UEFI's mappings end up incompatible. a0 (param 1, char) at fp-8.
+:FUNCTION__riscv_uart_putc
+	rd_t0 rs1_fp !-8 ld          ## t0 = char (low byte holds the value)
+	rd_t1 rs1_zero !1 addi       ## t1 = 1
+	rd_t1 rs1_t1 !28 slli        ## t1 = 1 << 28 = 0x10000000 (UART base)
+	rs1_t1 rs2_t0 sb             ## *(byte*)0x10000000 = char
+	ret
