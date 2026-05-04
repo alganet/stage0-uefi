@@ -1,0 +1,4 @@
+# SPDX-FileCopyrightText: 2026 Alexandre Gomes Gaigalas
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SHA256 answers for riscv64 UEFI bootstrap
+# TODO: populate with actual checksums after first successful full bootstrap
