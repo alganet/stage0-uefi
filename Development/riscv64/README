@@ -1,0 +1,13 @@
+RISC-V 64-bit UEFI hex source generators
+
+These Python scripts generate the hand-coded machine code (hex0/hex1 format)
+for the riscv64 UEFI bootstrap tools. Each script contains a RISC-V instruction
+encoder and builds the binary using a Builder class with automatic label fixups.
+
+gen-hex0-seed-rv64.py  - hex0 compiler (Phase 0)  [lost, reconstructible?]
+gen-kaem-optional-rv64.py - kaem script processor (Phase 0b)
+gen-hex1-rv64.py       - hex1 compiler with single-char labels (Phase 1)
+gen-hex2-rv64.py       - hex2 linker with long labels (Phase 2)
+
+Usage: python3 gen-<tool>-rv64.py > riscv64/<tool>.hex0
+The scripts also write the binary .efi to /tmp/ for testing.

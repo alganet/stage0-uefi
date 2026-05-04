@@ -1,0 +1,14 @@
+# SPDX-FileCopyrightText: 2026 Alexandre Gomes Gaigalas
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+##################################################
+# Phase 0-10 Build hex0 from bootstrapped binary #
+##################################################
+
+EFI\BOOT\BOOTRISCV64.efi riscv64\mescc-tools-seed-kaem.kaem
+riscv64\artifact\kaem-0.efi riscv64\mescc-tools-mini-kaem.kaem
+
+#######################################
+# Run remaining phases with full kaem #
+#######################################
+riscv64\bin\kaem.efi --verbose --strict --file riscv64/kaem.run

@@ -1,0 +1,34 @@
+#! /usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Alexandre Gomes Gaigalas
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+ARCH=riscv64
+ARCH_DIR=riscv64
+M2LIBC="../M2libc"
+TOOLS="../${ARCH_DIR}/bin"
+BLOOD_FLAG="--64"
+BASE_ADDRESS="0"
+ENDIAN_FLAG="--little-endian"
+BINDIR="../${ARCH_DIR}/bin"
+BUILDDIR="../${ARCH_DIR}/artifact"
+TMPDIR="${BUILDDIR}"
+EXE_SUFFIX=".efi"
+OPERATING_SYSTEM="UEFI"
+
+################################################
+# Phase 11-14 Rebuild M2-Planet from C sources #
+################################################
+./${ARCH_DIR}/bin/kaem.efi --verbose --strict --file ${ARCH_DIR}/mescc-tools-full-kaem.kaem
+
+######################################################
+# Phase 15-22 Build mescc-tools-extra from M2-Planet #
+######################################################
+cd mescc-tools-extra
+${BINDIR}/kaem.efi --verbose --strict --file mescc-tools-extra.kaem
+cd ..
+./${ARCH_DIR}/bin/sha256sum.efi -c ${ARCH}.answers
+
+#########################
+# Load after.kaem hook  #
+#########################
+exec ./${ARCH_DIR}/bin/kaem.efi --verbose --strict --file ./after.kaem

@@ -1,0 +1,179 @@
+#! /usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Alexandre Gomes Gaigalas
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+ARCH=riscv64
+ARCH_DIR=riscv64
+M2LIBC=M2libc
+BLOOD_FLAG=--64
+BASE_ADDRESS=0x0
+ENDIAN_FLAG=--little-endian
+BINDIR=${ARCH_DIR}/bin
+BUILDDIR=${ARCH_DIR}/artifact
+EXE_SUFFIX=.efi
+
+############################################
+# Phase-11 Build M2-Planet from M2-Planet  #
+############################################
+
+./${BINDIR}/M2-Planet${EXE_SUFFIX} --architecture ${ARCH} \
+	-f ./${M2LIBC}/sys/types.h \
+	-f ./${M2LIBC}/stddef.h \
+	-f ./${M2LIBC}/uefi/uefi.c \
+	-f ./${M2LIBC}/string.c \
+	-f ./${M2LIBC}/uefi/fcntl.c \
+	-f ./${M2LIBC}/fcntl.c \
+	-f ./${M2LIBC}/sys/utsname.h \
+	-f ./${M2LIBC}/uefi/sys/stat.c \
+	-f ./${M2LIBC}/ctype.c \
+	-f ./${M2LIBC}/stdarg.h \
+	-f ./${M2LIBC}/stdio.h \
+	-f ./${M2LIBC}/uefi/unistd.c \
+	-f ./${M2LIBC}/stdio.c \
+	-f ./${M2LIBC}/stdlib.c \
+	-f ./${M2LIBC}/bootstrappable.c \
+	-f ./M2-Planet/cc.h \
+	-f ./M2-Planet/cc_globals.c \
+	-f ./M2-Planet/cc_reader.c \
+	-f ./M2-Planet/cc_strings.c \
+	-f ./M2-Planet/cc_types.c \
+	-f ./M2-Planet/cc_emit.c \
+	-f ./M2-Planet/cc_core.c \
+	-f ./M2-Planet/cc_macro.c \
+	-f ./M2-Planet/cc.c \
+	-o ./${BUILDDIR}/M2-1.M1
+
+./${BINDIR}/M1${EXE_SUFFIX} --architecture ${ARCH} \
+	${ENDIAN_FLAG} \
+	-f ./${M2LIBC}/${ARCH}/${ARCH}_defs.M1 \
+	-f ./${M2LIBC}/${ARCH}/uefi/libc-full.M1 \
+	-f ./${BUILDDIR}/M2-1.M1 \
+	-o ./${BUILDDIR}/M2-1.hex2
+
+./${BINDIR}/hex2${EXE_SUFFIX} --architecture ${ARCH} \
+	${ENDIAN_FLAG} \
+	--base-address ${BASE_ADDRESS} \
+	-f ./${M2LIBC}/${ARCH}/uefi/PE32-${ARCH}.hex2 \
+	-f ./${BUILDDIR}/M2-1.hex2 \
+	-o ./${BINDIR}/M2-Planet${EXE_SUFFIX}
+
+###############################################
+# Phase-12 Build M2-Mesoplanet from M2-Planet #
+###############################################
+
+./${BINDIR}/M2-Planet${EXE_SUFFIX} --architecture ${ARCH} \
+	-f ./${M2LIBC}/sys/types.h \
+	-f ./${M2LIBC}/stddef.h \
+	-f ./${M2LIBC}/uefi/uefi.c \
+	-f ./${M2LIBC}/string.c \
+	-f ./${M2LIBC}/uefi/fcntl.c \
+	-f ./${M2LIBC}/fcntl.c \
+	-f ./${M2LIBC}/sys/utsname.h \
+	-f ./${M2LIBC}/uefi/sys/stat.c \
+	-f ./${M2LIBC}/ctype.c \
+	-f ./${M2LIBC}/stdarg.h \
+	-f ./${M2LIBC}/stdio.h \
+	-f ./${M2LIBC}/uefi/unistd.c \
+	-f ./${M2LIBC}/stdio.c \
+	-f ./${M2LIBC}/stdlib.c \
+	-f ./${M2LIBC}/bootstrappable.c \
+	-f ./M2-Mesoplanet/cc.h \
+	-f ./M2-Mesoplanet/cc_globals.c \
+	-f ./M2-Mesoplanet/cc_env.c \
+	-f ./M2-Mesoplanet/cc_reader.c \
+	-f ./M2-Mesoplanet/cc_spawn.c \
+	-f ./M2-Mesoplanet/cc_core.c \
+	-f ./M2-Mesoplanet/cc_macro.c \
+	-f ./M2-Mesoplanet/cc.c \
+	-o ./${BUILDDIR}/M2-Mesoplanet-1.M1
+
+./${BINDIR}/M1${EXE_SUFFIX} --architecture ${ARCH} \
+	${ENDIAN_FLAG} \
+	-f ./${M2LIBC}/${ARCH}/${ARCH}_defs.M1 \
+	-f ./${M2LIBC}/${ARCH}/uefi/libc-full.M1 \
+	-f ./${BUILDDIR}/M2-Mesoplanet-1.M1 \
+	-o ./${BUILDDIR}/M2-Mesoplanet-1.hex2
+
+./${BINDIR}/hex2${EXE_SUFFIX} --architecture ${ARCH} \
+	${ENDIAN_FLAG} \
+	--base-address ${BASE_ADDRESS} \
+	-f ./${M2LIBC}/${ARCH}/uefi/PE32-${ARCH}.hex2 \
+	-f ./${BUILDDIR}/M2-Mesoplanet-1.hex2 \
+	-o ./${BINDIR}/M2-Mesoplanet${EXE_SUFFIX}
+
+#############################################
+# Phase-13 Build get_machine from C sources #
+#############################################
+
+./${BINDIR}/M2-Planet${EXE_SUFFIX} --architecture ${ARCH} \
+	-f ./${M2LIBC}/sys/types.h \
+	-f ./${M2LIBC}/stddef.h \
+	-f ./${M2LIBC}/uefi/uefi.c \
+	-f ./${M2LIBC}/string.c \
+	-f ./${M2LIBC}/uefi/fcntl.c \
+	-f ./${M2LIBC}/fcntl.c \
+	-f ./${M2LIBC}/sys/utsname.h \
+	-f ./${M2LIBC}/uefi/sys/stat.c \
+	-f ./${M2LIBC}/ctype.c \
+	-f ./${M2LIBC}/stdarg.h \
+	-f ./${M2LIBC}/stdio.h \
+	-f ./${M2LIBC}/uefi/unistd.c \
+	-f ./${M2LIBC}/stdio.c \
+	-f ./${M2LIBC}/stdlib.c \
+	-f ./${M2LIBC}/bootstrappable.c \
+	-f ./mescc-tools/get_machine.c \
+	-o ./${BUILDDIR}/get_machine.M1
+
+./${BINDIR}/M1${EXE_SUFFIX} --architecture ${ARCH} \
+	${ENDIAN_FLAG} \
+	-f ./${M2LIBC}/${ARCH}/${ARCH}_defs.M1 \
+	-f ./${M2LIBC}/${ARCH}/uefi/libc-full.M1 \
+	-f ./${BUILDDIR}/get_machine.M1 \
+	-o ./${BUILDDIR}/get_machine.hex2
+
+./${BINDIR}/hex2${EXE_SUFFIX} --architecture ${ARCH} \
+	${ENDIAN_FLAG} \
+	--base-address ${BASE_ADDRESS} \
+	-f ./${M2LIBC}/${ARCH}/uefi/PE32-${ARCH}.hex2 \
+	-f ./${BUILDDIR}/get_machine.hex2 \
+	-o ./${BINDIR}/get_machine${EXE_SUFFIX}
+
+###########################################
+# Phase-14 Build blood-elf from C sources #
+###########################################
+
+./${BINDIR}/M2-Planet${EXE_SUFFIX} --architecture ${ARCH} \
+	-f ./${M2LIBC}/sys/types.h \
+	-f ./${M2LIBC}/stddef.h \
+	-f ./${M2LIBC}/uefi/uefi.c \
+	-f ./${M2LIBC}/string.c \
+	-f ./${M2LIBC}/uefi/fcntl.c \
+	-f ./${M2LIBC}/fcntl.c \
+	-f ./${M2LIBC}/sys/utsname.h \
+	-f ./${M2LIBC}/uefi/sys/stat.c \
+	-f ./${M2LIBC}/ctype.c \
+	-f ./${M2LIBC}/stdarg.h \
+	-f ./${M2LIBC}/stdio.h \
+	-f ./${M2LIBC}/uefi/unistd.c \
+	-f ./${M2LIBC}/stdio.c \
+	-f ./${M2LIBC}/stdlib.c \
+	-f ./${M2LIBC}/bootstrappable.c \
+	-f ./${M2LIBC}/string.h \
+	-f ./${M2LIBC}/string.c \
+	-f ./mescc-tools/stringify.c \
+	-f ./mescc-tools/blood-elf.c \
+	-o ./${BUILDDIR}/blood-elf.M1
+
+./${BINDIR}/M1${EXE_SUFFIX} --architecture ${ARCH} \
+	${ENDIAN_FLAG} \
+	-f ./${M2LIBC}/${ARCH}/${ARCH}_defs.M1 \
+	-f ./${M2LIBC}/${ARCH}/uefi/libc-full.M1 \
+	-f ./${BUILDDIR}/blood-elf.M1 \
+	-o ./${BUILDDIR}/blood-elf.hex2
+
+./${BINDIR}/hex2${EXE_SUFFIX} --architecture ${ARCH} \
+	${ENDIAN_FLAG} \
+	--base-address ${BASE_ADDRESS} \
+	-f ./${M2LIBC}/${ARCH}/uefi/PE32-${ARCH}.hex2 \
+	-f ./${BUILDDIR}/blood-elf.hex2 \
+	-o ./${BINDIR}/blood-elf${EXE_SUFFIX}
