@@ -8,7 +8,8 @@
 ## the faulting PC. We:
 ##   1. csrrw sp, sscratch, sp  -- atomic stack swap, sp=handler stack,
 ##                                  sscratch=user sp
-##   2. allocate a 256-byte trap_frame on the handler stack
+##   2. allocate a 288-byte trap_frame on the handler stack (32 GPRs + sepc
+##      + scause + stval + pad)
 ##   3. save x1, x3-x31 plus the user's sp (read back from sscratch) and sepc
 ##   4. call _entry_syscall(struct trap_frame*); the C dispatcher reads
 ##      tf->a7 for the syscall number, dispatches via syscall_table, and
