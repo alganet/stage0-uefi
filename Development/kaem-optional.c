@@ -97,7 +97,7 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
                 /* Line comments */
                 do {
                     fin->read(fin, &size, &c);
-                } while (c != '\n');
+                } while (c != '\n' && c != '\r');
                 break;
             }
             command[i] = c;

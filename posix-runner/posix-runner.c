@@ -547,6 +547,7 @@ void sys_exit(unsigned value, void, void, void, void, void)
      * it). Fall back to plain exit. */
     pt_restore_user_access();
     _riscv_set_stvec(uefi_stvec_saved);
+    _riscv_sie_restore(uefi_sie_saved);
     exit(value);
 #endif
 }

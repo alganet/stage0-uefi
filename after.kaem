@@ -1,5 +1,19 @@
 cd /posix-runner
 M2LIBC_PATH=${M2LIBC}
 PATH=${BINDIR}
-${BINDIR}/M2-Mesoplanet.efi --os UEFI --architecture ${ARCH} --file posix-runner.c --output ${BINDIR}/posix-runner.efi
+# riscv64 takes a hand-written trap-entry stub (trap-entry-riscv64.M1) that
+# must be linked at the M1 stage; M2-Mesoplanet can't inject extra .M1 inputs
+# so we run the toolchain manually for that arch. amd64 still uses
+# M2-Mesoplanet for simplicity.
+if match.efi "${ARCH}" "amd64"
+then
+	${BINDIR}/M2-Mesoplanet.efi --os UEFI --architecture ${ARCH} --file posix-runner.c --output ${BINDIR}/posix-runner.efi
+fi
+if match.efi "${ARCH}" "riscv64"
+then
+	${BINDIR}/M2-Mesoplanet.efi -E --os UEFI --architecture ${ARCH} --file posix-runner.c --output posix-runner.preproc.c
+	${BINDIR}/M2-Planet.efi --architecture ${ARCH} -f posix-runner.preproc.c -o posix-runner.M1
+	${BINDIR}/M1.efi --architecture ${ARCH} --little-endian -f ${M2LIBC}/${ARCH}/${ARCH}_defs.M1 -f ${M2LIBC}/${ARCH}/uefi/libc-full.M1 -f trap-entry-${ARCH}.M1 -f posix-runner.M1 -o posix-runner.hex2
+	${BINDIR}/hex2.efi --architecture ${ARCH} --little-endian --base-address 0x0 -f ${M2LIBC}/${ARCH}/uefi/PE32-${ARCH}.hex2 -f posix-runner.hex2 -o ${BINDIR}/posix-runner.efi
+fi
 cd ..
