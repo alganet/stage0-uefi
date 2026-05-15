@@ -23,6 +23,9 @@ efi_status_t efi_main(efi_handle_t image_handle, struct efi_system_table *system
     struct efi_guid guid2 = EFI_SIMPLE_FILE_SYSTEM_PROTOCOL_GUID;
     struct efi_guid guid3 = EFI_FILE_INFO_GUID;
 
+    /* Disable firmware watchdog: kaem scripts spend minutes loading
+     * dozens of .efi images during a full bootstrap; the default 5min
+     * watchdog would reboot us mid-script. */
     system->boot->set_watchdog_timer(0, 0, 0, NULL);
 
     /* Open Loaded Image protocol */

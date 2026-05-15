@@ -1,6 +1,7 @@
-#! /usr/bin/env bash
 # SPDX-FileCopyrightText: 2026 Alexandre Gomes Gaigalas
 # SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Consumed by kaem.efi inside the boot image (not by bash); no shebang.
 
 ARCH=riscv64
 ARCH_DIR=riscv64
