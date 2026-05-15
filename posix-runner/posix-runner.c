@@ -44,9 +44,9 @@
 void* uefi_page_table;
 void* page_table;
 
-#define MSR_EFER (0x60000080 + 0x60000000)
-#define MSR_STAR (0x60000081 + 0x60000000)
-#define MSR_LSTAR (0x60000082 + 0x60000000)
+#define MSR_EFER  0xC0000080
+#define MSR_STAR  0xC0000081
+#define MSR_LSTAR 0xC0000082
 
 #ifdef __riscv
 /* On riscv64 UEFI we run user code in U-mode with paging disabled (satp=0).
@@ -743,7 +743,7 @@ void wrmsr(unsigned msr, int low, int high)
 
 void wrmsrl(unsigned msr, long value)
 {
-    wrmsr(msr, value && 0xFFFFFFFF, value >> 32);
+    wrmsr(msr, value & 0xFFFFFFFF, value >> 32);
 }
 
 ulong rdmsrl(unsigned msr)
@@ -1045,7 +1045,9 @@ int main(int argc, char** argv, char** envp)
 #endif
 
     init_syscalls();
-    int argc0 = 1; /* skip argv[0] since it contains the name of efi binary */
+    /* Skip argv[0] (the efi binary's own name) when handing argv to the
+     * loaded ELF -- the user program expects argc/argv to start at the
+     * first real argument. */
     jump(current_process->entry_point, argc - 1, argv + sizeof(char *), envp);
 
     return 1;

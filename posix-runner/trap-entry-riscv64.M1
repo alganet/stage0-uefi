@@ -19,12 +19,14 @@
 ##   7. csrrw sp, sscratch, sp  -- swap back
 ##   8. sret
 ##
-## trap_frame layout (matches struct in posix-runner.c):
-##   ra=0  sp=8  gp=16  tp=24  t0=32 t1=40 t2=48 s0=56 s1=64
-##   a0=72 a1=80 a2=88  a3=96  a4=104 a5=112 a6=120 a7=128
+## trap_frame layout (must match struct trap_frame in posix-runner.c
+## byte-for-byte -- any reorder there silently miscompiles this stub):
+##   ra=0   sp=8   gp=16  tp=24  t0=32  t1=40  t2=48  s0=56  s1=64
+##   a0=72  a1=80  a2=88  a3=96  a4=104 a5=112 a6=120 a7=128
 ##   s2=136 s3=144 s4=152 s5=160 s6=168 s7=176 s8=184 s9=192 s10=200 s11=208
 ##   t3=216 t4=224 t5=232 t6=240
-##   sepc=248
+##   sepc=248 scause=256 stval=264 _pad=272
+## Total size: 288 bytes.
 
 :_riscv_trap_entry
 	## Atomic swap: sp <-> sscratch (handler stack now in sp, user sp in sscratch)

@@ -1,9 +1,9 @@
-#! /usr/bin/env bash
 # SPDX-FileCopyrightText: 2022 Andrius Štikonas <andrius@stikonas.eu>
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-# To run in kaem simply: kaem --verbose --strict
+# Consumed by kaem.efi inside the boot image (not by bash); no shebang.
+# To run in kaem manually: kaem --verbose --strict
 
 ARCH=amd64
 ARCH_DIR=amd64
