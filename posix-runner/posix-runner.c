@@ -37,12 +37,7 @@
 #include <uefi/uefi.c>
 #include <bootstrappable.h>
 
-#define PT_PRESENT 0
-#define PT_WRITABLE 1
-#define PT_HUGE_PAGE 7
-
 void* uefi_page_table;
-void* page_table;
 
 #define MSR_EFER  0xC0000080
 #define MSR_STAR  0xC0000081
@@ -171,9 +166,6 @@ void _riscv_enter_u_mode(void* entry_pc, long* user_sp);
 long _riscv_sie_save_and_clear();
 void _riscv_sie_restore(long val);
 void _riscv_disable_paging();
-/* Direct write to QEMU virt's 16550A UART at 0x10000000 — keep as a
- * debug escape if ConOut breaks (e.g. after a future paging change). */
-void _riscv_uart_putc(int c);
 void pt_enable_user_access();
 void pt_restore_user_access();
 
@@ -391,6 +383,10 @@ int sys_open(char* name, int flag, int mode, void, void, void)
         return rval;
     }
     fd = find_free_fd();
+    if (fd == -1) {
+        close(rval);
+        return -1;
+    }
     current_process->fd_map[fd] = rval;
     return fd;
 }
@@ -536,7 +532,6 @@ void sys_exit(unsigned value, void, void, void, void, void)
     free(current_process->saved_program.address);
     free(current_process->saved_stack.address);
     current_process->brk = current_process->saved_brk;
-    current_process->saved_stack_pointer;
     /* Simulate return from sys_fork() */
     asm("mov_rsp,rax"
         "mov_rax, %1"
@@ -662,11 +657,13 @@ int sys_times(char* buf, void, void, void, void, void)
 }
 #endif
 
+/* Sized for the largest syscall number we register on either arch:
+ * riscv64 generic ABI uses up to ~290 (wait4), amd64 up to 161. */
+#define SYSCALL_TABLE_SIZE 300
+
 void init_syscalls()
 {
-    /* Table sized for the largest syscall number we register on either arch.
-     * riscv64 generic ABI uses up to ~290 (wait4), amd64 up to 161. 300 is fine. */
-    syscall_table = calloc(300, sizeof(void *));
+    syscall_table = calloc(SYSCALL_TABLE_SIZE, sizeof(void *));
     if (syscall_table == NULL) {
         fputs("Could not allocate memory for syscall table.\n", stderr);
         exit(1);
@@ -703,8 +700,10 @@ void init_syscalls()
     syscall_table[RV_SYS_lseek]     = sys_lseek;
     syscall_table[RV_SYS_brk]       = sys_brk;
     syscall_table[RV_SYS_faccessat] = sys_faccessat;
-    syscall_table[RV_SYS_clone]     = sys_fork;
-    syscall_table[RV_SYS_execve]    = sys_execve;
+    /* clone/execve intentionally left unregistered on riscv64: sys_exit
+     * unconditionally calls exit() on this arch (no fork/exec restore
+     * path), so a successful clone+execve would split-brain. Let the
+     * unsupported-syscall logger fire instead. */
     syscall_table[RV_SYS_exit]      = sys_exit;
     syscall_table[RV_SYS_wait4]     = sys_wait4;
     syscall_table[RV_SYS_uname]     = sys_uname;
@@ -784,113 +783,94 @@ void pt_restore_user_access()
     set_cr3(uefi_satp_saved);
 }
 
+/* Stack arrays in the trap-dispatcher frame fault under M2-Planet's
+ * local-variable layout, so we can't use a printf-style buffer in
+ * _riscv_entry_syscall below. This out-of-line helper has only scalar
+ * locals and routes every nibble through fputc instead. Pass 60 to dump
+ * a full 64-bit value, smaller max_shift_bits for narrower hex columns. */
+void _hex_dump(long v, int max_shift_bits)
+{
+    int sh;
+    int d;
+    char nib;
+    sh = max_shift_bits;
+    while (sh >= 0) {
+        d = (v >> sh) & 0xF;
+        if (d < 10) nib = '0' + d;
+        else nib = 'a' + (d - 10);
+        fputc(nib, stderr);
+        sh = sh - 4;
+    }
+}
+
 /* Single-arg dispatcher called from trap-entry-riscv64.M1. The trap stub
  * passes a pointer to the saved user state; we read the syscall number from
  * a7 and the args from a0..a5, look up the handler, and return its result.
- * The trap stub stashes the return value back into the saved a0 slot. */
+ * The trap stub stashes the return value back into the saved a0 slot.
+ *
+ * On a non-ECALL trap we halt with spin-wfi: do NOT call exit() from inside
+ * the dispatcher, because that re-enters UEFI/SBI services with our modified
+ * stvec/sscratch and tends to either hang or re-trap. */
 long _riscv_entry_syscall(struct trap_frame* tf)
 {
     long syscall_num = tf->a7;
     long cause = tf->scause;
 
-    /* If this isn't ECALL-from-U-mode (cause=8) we have a real fault. Dump
-     * the saved frame inline using fputc-per-hex-digit — stack arrays in
-     * this trap-dispatcher frame fault under M2-Planet's local-variable
-     * layout, so we can't use a printf-style buffer here. Then halt with
-     * spin-wfi: do NOT call exit() from inside the dispatcher, because
-     * that re-enters UEFI/SBI services with our modified stvec/sscratch
-     * and tends to either hang or re-trap. */
     if (cause != SCAUSE_ECALL_FROM_U) {
-        long v;
-        char nib;
-        int sh;
-        int d;
         long* user_sp_p;
         int si;
-        long ov;
         fputs("posix-runner: unexpected trap\n  scause=0x", stderr);
-        v = cause;
-        sh = 60; while (sh >= 0) { d = (v >> sh) & 0xF; if (d < 10) nib = '0' + d; else nib = 'a' + (d - 10); fputc(nib, stderr); sh = sh - 4; }
+        _hex_dump(cause, 60);
         fputs("\n  sepc  =0x", stderr);
-        v = tf->sepc;
-        sh = 60; while (sh >= 0) { d = (v >> sh) & 0xF; if (d < 10) nib = '0' + d; else nib = 'a' + (d - 10); fputc(nib, stderr); sh = sh - 4; }
+        _hex_dump(tf->sepc, 60);
         fputs("\n  stval =0x", stderr);
-        v = tf->stval;
-        sh = 60; while (sh >= 0) { d = (v >> sh) & 0xF; if (d < 10) nib = '0' + d; else nib = 'a' + (d - 10); fputc(nib, stderr); sh = sh - 4; }
+        _hex_dump(tf->stval, 60);
         fputs("\n  ra    =0x", stderr);
-        v = tf->ra;
-        sh = 60; while (sh >= 0) { d = (v >> sh) & 0xF; if (d < 10) nib = '0' + d; else nib = 'a' + (d - 10); fputc(nib, stderr); sh = sh - 4; }
+        _hex_dump(tf->ra, 60);
         fputs("\n  sp    =0x", stderr);
-        v = tf->sp;
-        sh = 60; while (sh >= 0) { d = (v >> sh) & 0xF; if (d < 10) nib = '0' + d; else nib = 'a' + (d - 10); fputc(nib, stderr); sh = sh - 4; }
+        _hex_dump(tf->sp, 60);
         fputs("\n  tp    =0x", stderr);
-        v = tf->tp;
-        sh = 60; while (sh >= 0) { d = (v >> sh) & 0xF; if (d < 10) nib = '0' + d; else nib = 'a' + (d - 10); fputc(nib, stderr); sh = sh - 4; }
+        _hex_dump(tf->tp, 60);
         fputs("\n  s0/fp =0x", stderr);
-        v = tf->s0;
-        sh = 60; while (sh >= 0) { d = (v >> sh) & 0xF; if (d < 10) nib = '0' + d; else nib = 'a' + (d - 10); fputc(nib, stderr); sh = sh - 4; }
+        _hex_dump(tf->s0, 60);
         fputs("\n  t3    =0x", stderr);
-        v = tf->t3;
-        sh = 60; while (sh >= 0) { d = (v >> sh) & 0xF; if (d < 10) nib = '0' + d; else nib = 'a' + (d - 10); fputc(nib, stderr); sh = sh - 4; }
+        _hex_dump(tf->t3, 60);
         /* Dump 32 longs starting at user sp. In bare mode VA == PA so
          * we can read the user's stack directly. Used to find saved ra
          * values up the call chain. */
         user_sp_p = (long*)(tf->sp);
         for (si = 0; si < 32; si = si + 1) {
             fputs("\n  *sp+0x", stderr);
-            ov = si * 8;
-            sh = 8; while (sh >= 0) { d = (ov >> sh) & 0xF; if (d < 10) nib = '0' + d; else nib = 'a' + (d - 10); fputc(nib, stderr); sh = sh - 4; }
+            _hex_dump(si * 8, 8);
             fputs(" =0x", stderr);
-            v = user_sp_p[si];
-            sh = 60; while (sh >= 0) { d = (v >> sh) & 0xF; if (d < 10) nib = '0' + d; else nib = 'a' + (d - 10); fputc(nib, stderr); sh = sh - 4; }
+            _hex_dump(user_sp_p[si], 60);
         }
         fputs("\n  a0    =0x", stderr);
-        v = tf->a0;
-        sh = 60; while (sh >= 0) { d = (v >> sh) & 0xF; if (d < 10) nib = '0' + d; else nib = 'a' + (d - 10); fputc(nib, stderr); sh = sh - 4; }
+        _hex_dump(tf->a0, 60);
         fputs("\n  a1    =0x", stderr);
-        v = tf->a1;
-        sh = 60; while (sh >= 0) { d = (v >> sh) & 0xF; if (d < 10) nib = '0' + d; else nib = 'a' + (d - 10); fputc(nib, stderr); sh = sh - 4; }
+        _hex_dump(tf->a1, 60);
         fputs("\n  a2    =0x", stderr);
-        v = tf->a2;
-        sh = 60; while (sh >= 0) { d = (v >> sh) & 0xF; if (d < 10) nib = '0' + d; else nib = 'a' + (d - 10); fputc(nib, stderr); sh = sh - 4; }
+        _hex_dump(tf->a2, 60);
         fputs("\n  a3    =0x", stderr);
-        v = tf->a3;
-        sh = 60; while (sh >= 0) { d = (v >> sh) & 0xF; if (d < 10) nib = '0' + d; else nib = 'a' + (d - 10); fputc(nib, stderr); sh = sh - 4; }
+        _hex_dump(tf->a3, 60);
         fputs("\n  a7    =0x", stderr);
-        v = tf->a7;
-        sh = 60; while (sh >= 0) { d = (v >> sh) & 0xF; if (d < 10) nib = '0' + d; else nib = 'a' + (d - 10); fputc(nib, stderr); sh = sh - 4; }
+        _hex_dump(tf->a7, 60);
         fputs("\nposix-runner: halting (wfi loop).\n", stderr);
         while (1) {
             asm("wfi");
         }
     }
 
-    if (syscall_num >= 300) {
+    if (syscall_num >= SYSCALL_TABLE_SIZE) {
         return -1;
     }
     FUNCTION process_syscall = syscall_table[syscall_num];
     if (process_syscall != NULL) {
         return process_syscall(tf->a0, tf->a1, tf->a2, tf->a3, tf->a4, tf->a5);
     }
-    /* Unsupported syscall: log the number and return -1. Same inlined
-     * fputc-per-digit pattern as the fault path — see the trap-fault
-     * comment above for why we can't use a stack buffer here. */
-    {
-        long sv = syscall_num;
-        int ssh;
-        int sd_;
-        char snib;
-        fputs("posix-runner: unsupported riscv64 syscall 0x", stderr);
-        ssh = 28;
-        while (ssh >= 0) {
-            sd_ = (sv >> ssh) & 0xF;
-            if (sd_ < 10) snib = '0' + sd_;
-            else snib = 'a' + (sd_ - 10);
-            fputc(snib, stderr);
-            ssh = ssh - 4;
-        }
-        fputs("\n", stderr);
-    }
+    fputs("posix-runner: unsupported riscv64 syscall 0x", stderr);
+    _hex_dump(syscall_num, 28);
+    fputs("\n", stderr);
     return -1;
 }
 #endif
@@ -902,9 +882,7 @@ void _entry_syscall(long syscall, long arg1, long arg2, long arg3, long arg4, lo
     if (process_syscall != NULL) {
         int rval;
         __uefi_1(prev_tpl, _system->boot_services->restore_tpl);
-        set_cr3(uefi_page_table);
         rval = process_syscall(arg1, arg2, arg3, arg4, arg5, arg6);
-        set_cr3(page_table);
         __uefi_1(TPL_HIGH_LEVEL, _system->boot_services->raise_tpl);
         return rval;
     }
@@ -963,7 +941,6 @@ void entry_syscall()
 int main(int argc, char** argv, char** envp)
 {
     uefi_page_table = get_cr3();
-    page_table = uefi_page_table;
 
     if (argc < 2) {
         fputs("Usage: ", stderr);

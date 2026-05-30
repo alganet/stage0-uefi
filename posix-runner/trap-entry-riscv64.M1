@@ -167,9 +167,9 @@
 	sret
 
 ## --- Bootstrap helpers --------------------------------------------------
-## C code calls _riscv_install_trap(handler_stack_top) once before going to
-## U-mode. We set sscratch to the handler stack top so the very first trap's
-## csrrw lands sp on a clean handler stack.
+## C code calls _riscv_install_trap_entry(handler_stack_top) once before
+## going to U-mode. We set sscratch to the handler stack top so the very
+## first trap's csrrw lands sp on a clean handler stack.
 
 :FUNCTION__riscv_install_trap_entry
 	## a0 (param 1) loaded from fp-8
@@ -223,8 +223,8 @@
 ## Returns sie into a0 and clears all of sie. Interrupts in U-mode trap to
 ## S-mode regardless of sstatus.SIE — sie is the only knob that lets us
 ## prevent the supervisor timer interrupt from clobbering our trap handler.
-## Caller saves the returned value and restores it via _riscv_set_sie on
-## exit so UEFI gets its timer back.
+## Caller saves the returned value and restores it via _riscv_sie_restore
+## on exit so UEFI gets its timer back.
 :FUNCTION__riscv_sie_save_and_clear
 	rd_a0 csr_sie rs1_zero csrrs       ## a0 = old sie
 	rd_zero csr_sie rs1_a0 csrrc       ## sie &= ~old_sie -> sie = 0
@@ -251,12 +251,3 @@
 	rd_zero rs1_zero rs2_zero sfence_vma
 	ret
 
-## Direct write to the QEMU virt 16550A UART data register at 0x10000000.
-## Bypasses UEFI ConOut so we can produce output even after the page-table
-## swap if UEFI's mappings end up incompatible. a0 (param 1, char) at fp-8.
-:FUNCTION__riscv_uart_putc
-	rd_t0 rs1_fp !-8 ld          ## t0 = char (low byte holds the value)
-	rd_t1 rs1_zero !1 addi       ## t1 = 1
-	rd_t1 rs1_t1 !28 slli        ## t1 = 1 << 28 = 0x10000000 (UART base)
-	rs1_t1 rs2_t0 sb             ## *(byte*)0x10000000 = char
-	ret
