@@ -1,6 +1,6 @@
 # stage0-uefi
 
-This is a port of stage0-posix (https://github.com/oriansj/stage0-posix) to UEFI. Its purpose is to start with a tiny binary seed that can be manually inspected and use it to build C toolchain and some extra tools.
+This is a port of stage0-posix (https://github.com/oriansj/stage0-posix) to UEFI. Its purpose is to start with a tiny binary seed that can be manually inspected and use it to build C toolchain and some extra tools. It targets amd64 and riscv64 UEFI.
 
 ## Usage
 
@@ -87,7 +87,7 @@ DEFINE sub_rbx, 4881EB
 
 ### cc_amd64
 
-The `cc_amd64` implements a subset of the C language designed in `M0` assembly. It is a somewhat limited subset of C but complete enough to make it easy to write a more usable C compiler written in the C subset that `cc_amd64` supports.
+The `cc_amd64` implements a subset of the C language designed in `M0` assembly. It is a somewhat limited subset of C but complete enough to make it easy to write a more usable C compiler written in the C subset that `cc_amd64` supports. (riscv64 builds the analogous `cc_riscv64`.)
 
 At this stage we start using `M2libc` (https://github.com/oriansj/M2libc/) as our C library. In fact, `M2libc` ships two versions of C library. At this stage we use a single-file (`bootstrap.c`) C library that contains just enough to build `M2-Planet`.
 
