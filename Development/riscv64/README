@@ -1,13 +1,45 @@
 RISC-V 64-bit UEFI hex source generators
+========================================
 
-These Python scripts generate the hand-coded machine code (hex0/hex1 format)
-for the riscv64 UEFI bootstrap tools. Each script contains a RISC-V instruction
-encoder and builds the binary using a Builder class with automatic label fixups.
+These Python scripts generate the hand-coded machine code (hex0 / hex1 / hex2
+format) for the riscv64 UEFI bootstrap tools. Each script embeds a RISC-V
+instruction encoder (see rv64enc.py) and builds the binary with a Builder class
+that resolves labels automatically.
 
-gen-hex0-seed-rv64.py  - hex0 compiler (Phase 0)  [lost, reconstructible?]
-gen-kaem-optional-rv64.py - kaem script processor (Phase 0b)
-gen-hex1-rv64.py       - hex1 compiler with single-char labels (Phase 1)
-gen-hex2-rv64.py       - hex2 linker with long labels (Phase 2)
+Generators and the artifacts they produce
+------------------------------------------
+  gen-hex1-rv64.py          -> ../../riscv64/hex1.hex0  (hex1 compiler, Phase 1)
+  gen-hex2-rv64.py          -> ../../riscv64/hex2.hex1  (hex2 linker, Phase 2)
+  gen-M0-rv64.py            -> ../../riscv64/M0.hex2     (M0 macro assembler)
+  gen-catm-rv64.py          -> ../../riscv64/catm.hex2   (catm concatenator)
+  gen-kaem-optional-rv64.py -> (reference only -- see "Hand-maintained" below)
 
-Usage: python3 gen-<tool>-rv64.py > riscv64/<tool>.hex0
-The scripts also write the binary .efi to /tmp/ for testing.
+Each script writes the hex source to stdout, e.g.:
+
+  python3 gen-hex1-rv64.py > ../../riscv64/hex1.hex0
+
+The committed artifacts carry richer hand-written documentation comments than
+the generators emit, so the two are NOT byte-identical -- but their machine
+content (hex bytes plus hex2 label/ref directives, with comments and whitespace
+ignored) must match. verify-gen.sh enforces exactly that and is wired into the
+top-level Makefile as `make verify-riscv64-gen`. Run it after editing any
+generator; when you change machine code, re-run the generator into its artifact.
+
+Hand-maintained artifacts (NOT generated)
+-----------------------------------------
+  ../../riscv64/hex0.hex0           No generator exists; this is the root hex0
+                                    seed and is maintained by hand.
+  ../../riscv64/kaem-optional.hex0  Hand-tuned after generation. Its generator
+                                    (gen-kaem-optional-rv64.py) is a historical
+                                    reference that has since diverged and does
+                                    NOT reproduce the committed binary; the
+                                    committed file is authoritative. verify-gen.sh
+                                    deliberately does not check these two.
+
+Helpers
+-------
+  rv64enc.py        RISC-V instruction encoder (R/I/S/B/U/J forms), cross-checked
+                    against GNU as.
+  hex2_helper.py, hex2_sim.py, kaem_helper.py, assemble_hex2.py
+                    Supporting library / simulator / assembly utilities used by
+                    the generators and during development.

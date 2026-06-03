@@ -19,7 +19,14 @@ build_dir = build
 rootfs_dir = $(build_dir)/rootfs
 boot_dir = $(rootfs_dir)/EFI/BOOT
 
-.PHONY : clean rootfs qemu
+.PHONY : clean rootfs qemu verify-riscv64-gen
+
+# Fail if the riscv64 generators in Development/riscv64/ no longer reproduce the
+# committed riscv64/*.hex{0,1,2} artifacts (machine content only; comments are
+# allowed to differ). hex0.hex0 and kaem-optional.hex0 are hand-maintained and
+# excluded -- see Development/riscv64/verify-gen.sh.
+verify-riscv64-gen:
+	sh Development/riscv64/verify-gen.sh
 
 $(build_dir)/disk.img: $(build_dir)/esp.img
 	dd if=/dev/zero of=$@ bs=512 count=$(DISK_SIZE_SECTORS)
