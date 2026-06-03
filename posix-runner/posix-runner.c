@@ -364,14 +364,35 @@ int find_free_fd()
     return -1;
 }
 
+/* Translate a guest fd to its host fd. Rejects out-of-range indices so a bad
+ * fd from the guest returns -1 instead of reading past fd_map[] (an OOB access
+ * that would otherwise hand a garbage descriptor to the host syscall). */
+int resolve_fd(int fd)
+{
+    if (fd < 0 || fd >= __FILEDES_MAX) {
+        return -1;
+    }
+    return current_process->fd_map[fd];
+}
+
 int sys_read(int fd, char* buf, unsigned count, void, void, void)
 {
-    return read(current_process->fd_map[fd], buf, count);
+    int h;
+    h = resolve_fd(fd);
+    if (h == -1) {
+        return -1;
+    }
+    return read(h, buf, count);
 }
 
 int sys_write(int fd, char* buf, unsigned count, void, void, void)
 {
-    return write(current_process->fd_map[fd], buf, count);
+    int h;
+    h = resolve_fd(fd);
+    if (h == -1) {
+        return -1;
+    }
+    return write(h, buf, count);
 }
 
 int sys_open(char* name, int flag, int mode, void, void, void)
@@ -394,14 +415,24 @@ int sys_open(char* name, int flag, int mode, void, void, void)
 int sys_close(int fd, void, void, void, void, void)
 {
     int rval;
-    rval = close(current_process->fd_map[fd]);
+    int h;
+    h = resolve_fd(fd);
+    if (h == -1) {
+        return -1;
+    }
+    rval = close(h);
     current_process->fd_map[fd] = NULL;
     return rval;
 }
 
 int sys_lseek(int fd, int offset, int whence, void, void, void)
 {
-    return lseek(current_process->fd_map[fd], offset, whence);
+    int h;
+    h = resolve_fd(fd);
+    if (h == -1) {
+        return -1;
+    }
+    return lseek(h, offset, whence);
 }
 
 int sys_brk(void* addr, void, void, void, void, void)
@@ -570,7 +601,12 @@ int sys_chdir(char* path, void, void, void, void, void)
 
 int sys_fchdir(int fd, void, void, void, void, void)
 {
-    return fchdir(current_process->fd_map[fd]);
+    int h;
+    h = resolve_fd(fd);
+    if (h == -1) {
+        return -1;
+    }
+    return fchdir(h);
 }
 
 int sys_mkdir(char const* a, mode_t b, void, void, void, void)
@@ -657,6 +693,22 @@ int sys_times(char* buf, void, void, void, void, void)
 }
 #endif
 
+#ifdef __riscv
+/* clone/execve cannot be emulated on riscv64: sys_exit unconditionally calls
+ * exit() on this arch (there is no fork/exec saved-state restore path like the
+ * x86_64 one), so a "successful" clone+execve would leave the runner split-
+ * brained. Register this as an explicit fatal stub so an attempt halts loudly
+ * rather than returning -1 and letting the guest proceed on bad assumptions. */
+int sys_riscv_no_proc(void, void, void, void, void, void)
+{
+    fputs("posix-runner: clone/execve attempted on riscv64 (unsupported) -- halting\n", stderr);
+    while (1) {
+        asm("wfi");
+    }
+    return -1; /* unreached */
+}
+#endif
+
 /* Sized for the largest syscall number we register on either arch:
  * riscv64 generic ABI uses up to ~290 (wait4), amd64 up to 161. */
 #define SYSCALL_TABLE_SIZE 300
@@ -700,10 +752,11 @@ void init_syscalls()
     syscall_table[RV_SYS_lseek]     = sys_lseek;
     syscall_table[RV_SYS_brk]       = sys_brk;
     syscall_table[RV_SYS_faccessat] = sys_faccessat;
-    /* clone/execve intentionally left unregistered on riscv64: sys_exit
-     * unconditionally calls exit() on this arch (no fork/exec restore
-     * path), so a successful clone+execve would split-brain. Let the
-     * unsupported-syscall logger fire instead. */
+    /* clone/execve cannot be emulated on riscv64 (see sys_riscv_no_proc):
+     * register an explicit fatal stub so an attempt halts loudly instead of
+     * returning -1 from the unsupported-syscall path and split-braining. */
+    syscall_table[RV_SYS_clone]     = sys_riscv_no_proc;
+    syscall_table[RV_SYS_execve]    = sys_riscv_no_proc;
     syscall_table[RV_SYS_exit]      = sys_exit;
     syscall_table[RV_SYS_wait4]     = sys_wait4;
     syscall_table[RV_SYS_uname]     = sys_uname;

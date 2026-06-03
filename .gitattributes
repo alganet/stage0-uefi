@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: 2026 Alexandre Gomes Gaigalas <alganet@gmail.com>
+# SPDX-License-Identifier: MIT
+
+# Boot-time kaem scripts are parsed byte-for-byte by the hand-written UEFI
+# seed (bootstrap-seeds kaem-optional). Like the amd64 seed, the riscv64 seed
+# treats only LF (0x0A) as the line terminator and has no CR tolerance, so a
+# CRLF checkout (e.g. on Windows) would embed a stray \r in the last command
+# token. Force LF so the seed reads these identically everywhere.
+*.kaem text eol=lf
+*.run  text eol=lf
+kaem.* text eol=lf
